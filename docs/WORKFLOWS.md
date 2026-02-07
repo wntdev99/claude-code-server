@@ -1241,42 +1241,345 @@ idle → running → waiting_review → running → completed
 
 ## Best Practices
 
-### For Sub-Agents
+### For Sub-Agents (Workflow-Specific)
 
-1. **Read guides before each step**
-2. **Follow templates strictly**
-3. **Generate complete deliverables** (no placeholders)
-4. **Request dependencies early**
-5. **Ask clarifying questions when genuinely needed**
-6. **Signal progress clearly**
-7. **Verify own work before completion**
+#### Phase-A (create_app) Best Practices
+
+1. **Read ALL guides before starting each phase**
+   - Phase 1: Read all 9 planning guides
+   - Phase 2: Read all 5 design guides
+   - Phase 3: Read all 6 development guides
+
+2. **Generate complete, specific content**
+   - No placeholders: `[TODO]`, `[TBD]`, `[Insert X]`
+   - Use specific examples, not generic descriptions
+   - Define concrete features, not "various features"
+
+3. **Maintain consistency across phases**
+   - Tech stack in Phase 1 must match architecture in Phase 2 and code in Phase 3
+   - Features defined in Phase 1 must be designed in Phase 2 and implemented in Phase 3
+
+4. **Follow verification criteria**
+   - Review criteria before completing each phase
+   - Self-check deliverables against criteria
+   - Fix issues before signaling completion
+
+5. **Request dependencies early**
+   - If external services needed, request API keys in Phase 1
+   - Don't wait until Phase 3 to request dependencies
+
+#### Phase-B (modify_app) Best Practices
+
+1. **Thoroughly analyze before modifying**
+   - Read entire codebase before planning changes
+   - Understand existing patterns and architecture
+   - Identify all affected components
+
+2. **Preserve existing functionality**
+   - Don't break existing features
+   - Maintain backward compatibility when possible
+   - Keep existing tests passing
+
+3. **Follow existing code style**
+   - Match indentation, naming conventions
+   - Use same libraries and patterns
+   - Don't introduce inconsistent patterns
+
+4. **Test extensively**
+   - Run all existing tests after changes
+   - Add new tests for new functionality
+   - Test edge cases and error scenarios
+
+5. **Document all changes**
+   - Update README if setup changes
+   - Update inline comments if logic changes
+   - Add changelog entry if significant change
+
+#### Phase-C (workflow) Best Practices
+
+1. **Define triggers clearly**
+   - Specify exact cron expression for schedule triggers
+   - Define complete webhook payload structure
+   - Document all trigger configurations
+
+2. **Design for failure**
+   - Implement retries with exponential backoff
+   - Add fallback behaviors for critical steps
+   - Send notifications on failures
+
+3. **Handle rate limits**
+   - Respect external API rate limits
+   - Implement queuing if needed
+   - Add delays between requests
+
+4. **Make integrations resilient**
+   - Handle network timeouts
+   - Validate API responses
+   - Provide meaningful error messages
+
+5. **Test all scenarios**
+   - Test each trigger type
+   - Test error scenarios (API down, timeout, invalid data)
+   - Test end-to-end workflow execution
+
+#### Type-D (custom) Best Practices
+
+1. **Understand the request**
+   - Read carefully before responding
+   - Ask clarifying questions if ambiguous
+   - Confirm understanding if complex
+
+2. **Provide thorough answers**
+   - Explain concepts clearly
+   - Provide examples when helpful
+   - Include relevant context
+
+3. **Generate quality code**
+   - Include comments for complex logic
+   - Handle edge cases
+   - Follow best practices
+
+4. **Be conversational**
+   - No need for formal deliverables
+   - Natural, helpful tone
+   - Offer to elaborate or clarify
 
 ### For Users
 
-1. **Provide clear task descriptions**
-2. **Respond to dependency requests promptly**
-3. **Review deliverables thoroughly**
-4. **Provide actionable feedback**
-5. **Approve phases only when satisfied**
-6. **Monitor progress via SSE stream**
+#### When Creating create_app Tasks
+
+1. **Provide clear app description**
+   - What the app should do
+   - Who will use it
+   - Key features needed
+
+2. **Specify tech stack preferences** (optional)
+   - Preferred frameworks
+   - Database preferences
+   - Deployment target
+
+3. **Define constraints**
+   - Budget constraints
+   - Time constraints
+   - Technical constraints
+
+#### When Creating modify_app Tasks
+
+1. **Provide access to codebase**
+   - Share repository URL or code files
+   - Include any relevant documentation
+   - Explain current functionality
+
+2. **Clearly describe desired changes**
+   - What to add/modify/remove
+   - Why the change is needed
+   - Expected behavior after change
+
+3. **Highlight critical areas**
+   - Features that must not break
+   - Performance requirements
+   - Security considerations
+
+#### When Creating workflow Tasks
+
+1. **Define the automation goal**
+   - What should be automated
+   - What triggers the workflow
+   - What's the expected outcome
+
+2. **List integrations needed**
+   - Which external services
+   - Available API access
+   - Authentication methods
+
+3. **Specify error handling needs**
+   - What happens on failure
+   - Who should be notified
+   - Retry requirements
+
+#### General Best Practices
+
+1. **Respond to requests promptly**
+   - Dependency requests
+   - User questions
+   - Review feedback
+
+2. **Review deliverables thoroughly**
+   - Check all documents
+   - Test code if provided
+   - Verify completeness
+
+3. **Provide actionable feedback**
+   - Be specific about what needs changing
+   - Explain why change is needed
+   - Provide examples if helpful
+
+4. **Monitor progress**
+   - Watch SSE stream for updates
+   - Check phase completion
+   - Review checkpoints if needed
 
 ### For Platform Operators
 
 1. **Monitor token usage**
+   - Track usage per task
+   - Set budget alerts
+   - Optimize long-running tasks
+
 2. **Handle rate limits gracefully**
+   - Pause agents when limit hit
+   - Resume after reset time
+   - Notify users of delays
+
 3. **Create checkpoints regularly**
+   - Every 10 minutes
+   - On phase completion
+   - Before risky operations
+
 4. **Log all events**
-5. **Clean up completed tasks**
+   - Task creation/completion
+   - Phase transitions
+   - Errors and recoveries
+   - User interactions
+
+5. **Clean up resources**
+   - Terminate completed agent processes
+   - Archive old deliverables
+   - Clean up temp files
+
 6. **Archive deliverables**
+   - Save all documents
+   - Save code outputs
+   - Save logs for debugging
+
+---
+
+## Workflow Type Selection Guide
+
+**How to choose the right workflow type for your task:**
+
+### Decision Tree
+
+```
+Is it a coding task?
+├─ No → Type-D (custom)
+│         Examples: Q&A, explanations, research, comparisons
+│
+└─ Yes → Does existing code need modification?
+          ├─ Yes → Phase-B (modify_app)
+          │         Examples: "Add dark mode", "Fix bug in auth", "Update API"
+          │
+          └─ No → Is it automation/integration focused?
+                  ├─ Yes → Phase-C (workflow)
+                  │         Examples: "Send Slack on GitHub PR", "Daily DB backup"
+                  │
+                  └─ No → Phase-A (create_app)
+                            Examples: "Build todo app", "Create landing page"
+```
+
+### Detailed Selection Criteria
+
+| Choose Phase-A (create_app) when: | Choose Phase-B (modify_app) when: |
+|-----------------------------------|-----------------------------------|
+| ✅ Creating new app from scratch | ✅ Modifying existing application |
+| ✅ Need full planning & design | ✅ Existing codebase provided |
+| ✅ Building complete application | ✅ Adding features to existing app |
+| ✅ Starting with blank slate | ✅ Fixing bugs in existing code |
+| ✅ Need comprehensive documentation | ✅ Refactoring existing code |
+| Example: "Build a blog platform" | Example: "Add search to my blog" |
+
+| Choose Phase-C (workflow) when: | Choose Type-D (custom) when: |
+|---------------------------------|------------------------------|
+| ✅ Creating automation | ✅ Q&A or explanation needed |
+| ✅ Integrating external services | ✅ Quick code snippet needed |
+| ✅ Trigger-based execution | ✅ Code review requested |
+| ✅ Scheduled tasks | ✅ Debugging help needed |
+| ✅ Event-driven processing | ✅ Research task |
+| Example: "Auto-deploy on push" | Example: "Explain async/await" |
+
+### Common Mistakes
+
+❌ **DON'T use Phase-A for**:
+- Modifying existing apps (use Phase-B)
+- Simple automation (use Phase-C)
+- Q&A tasks (use Type-D)
+
+❌ **DON'T use Phase-B for**:
+- New apps (use Phase-A)
+- Workflow automation (use Phase-C)
+- Tasks without existing code (use Phase-A or Phase-C)
+
+❌ **DON'T use Phase-C for**:
+- Full applications (use Phase-A)
+- Modifying apps (use Phase-B)
+- Non-automation tasks (use Phase-A, Phase-B, or Type-D)
+
+❌ **DON'T use Type-D for**:
+- Tasks requiring structured deliverables (use Phase-A/B/C)
+- Complex coding projects (use Phase-A/B/C)
+- Tasks that benefit from review gates (use Phase-A/B/C)
+
+### Real-World Examples
+
+**Phase-A (create_app)**:
+- "Build a todo app with React and Firebase"
+- "Create a REST API for a blog platform"
+- "Develop a landing page for a SaaS product"
+- "Build a CLI tool for file management"
+- "Create an e-commerce storefront"
+
+**Phase-B (modify_app)**:
+- "Add dark mode to my existing React app"
+- "Fix authentication bug in login flow"
+- "Add pagination to the user list"
+- "Refactor API to use async/await"
+- "Update dependencies to latest versions"
+- "Add email notifications to existing app"
+
+**Phase-C (workflow)**:
+- "Send Slack notification when GitHub PR is merged"
+- "Daily backup of PostgreSQL database to S3"
+- "Auto-deploy to production on main branch push"
+- "Generate weekly analytics report and email it"
+- "Sync data between Stripe and internal database"
+- "Monitor website uptime and alert on downtime"
+
+**Type-D (custom)**:
+- "Explain how JWT authentication works"
+- "Write a regex to validate email addresses"
+- "Review this code for security vulnerabilities"
+- "Why am I getting this error message?"
+- "Compare REST vs GraphQL for my use case"
+- "What's the best state management for React?"
 
 ---
 
 ## Reference Documents
 
-- **Feature Specification**: `FEATURES.md`
+- **Project Overview**: `../README.md`
 - **Architecture**: `ARCHITECTURE.md`
 - **API Reference**: `API.md`
-- **Planning Guides**: `/guide/planning/*.md`
-- **Design Guides**: `/guide/design/*.md`
-- **Development Guides**: `/guide/development/*.md`
-- **Verification Guides**: `/guide/verification/*.md`
+- **Development Guide**: `DEVELOPMENT.md`
+- **Planning Guides**: `/guide/planning/*.md` (for Phase-A)
+- **Design Guides**: `/guide/design/*.md` (for Phase-A)
+- **Development Guides**: `/guide/development/*.md` (for Phase-A)
+- **Verification Guides**: `/guide/verification/*.md` (for Phase-A, adapt for Phase-B/C)
+
+---
+
+## Summary
+
+**Key Takeaways**:
+
+1. **Four distinct workflows** - Each with completely different phases and requirements
+2. **Phase-A (create_app)**: Most comprehensive - 14 docs + codebase, uses all 24 guides
+3. **Phase-B (modify_app)**: Focused on modification - 2 docs + modified code, no guides
+4. **Phase-C (workflow)**: Automation-focused - 2 docs + workflow code, adapted guides
+5. **Type-D (custom)**: No structure - conversational, no deliverables, no guides
+6. **Review gates** for Phase-A/B/C after each phase, none for Type-D
+7. **Verification** is workflow-specific with different criteria for each type
+8. **Sub-agents must identify task type** and follow the correct workflow
+
+**For Sub-Agents**: Always check the task type and follow the corresponding workflow exactly. Don't mix workflows!
+
+**For Users**: Choose the right workflow type for your task to get the best results.
