@@ -745,13 +745,73 @@ workflow-project/
 
 **Purpose**: Handle miscellaneous tasks that don't fit structured workflows
 
-**Workflow**: Single-phase autonomous execution
+**Workflow**: Type-D (No structured phases)
 
 ```
-User prompt → Agent response → Iterative conversation
+User prompt → Agent response → Iterative conversation → Completion
 ```
 
-No fixed phases - agent responds naturally to user requests.
+**Characteristics**:
+- No fixed phases or deliverables
+- No guide documents to follow
+- No formal verification or review gates
+- Agent uses autonomous decision-making
+- Conversational, iterative approach
+
+**Use Cases**:
+- Q&A and explanations ("Explain how WebSockets work")
+- Code review ("Review this code for security issues")
+- Debugging help ("Why is this error happening?")
+- Quick tasks ("Write a regex to validate email")
+- Research ("Find best practices for React state management")
+- Comparisons ("Compare REST vs GraphQL")
+
+**Sub-Agent Instructions for custom (Type-D)**:
+
+**What to do**:
+1. Read and understand the user's request
+2. Respond naturally and helpfully
+3. If clarification needed, ask questions
+4. Provide thorough, accurate answers
+5. If code is needed, generate it
+6. If research is needed, explain findings
+7. Signal completion when task is done
+
+**DO NOT**:
+- Try to follow Phase-A/B/C workflows
+- Create formal deliverable documents
+- Wait for review gates
+- Request dependencies unless truly needed
+- Over-structure the response
+
+**How to signal completion**:
+- Simply state "Task completed" or similar
+- No formal phase completion protocol needed
+- Agent can continue conversation if user has follow-up questions
+
+**Examples**:
+
+Example 1: Explanation request
+```
+User: "Explain how JWT authentication works"
+Agent: [Provides detailed explanation]
+Agent: "I've explained JWT authentication including structure, signing, and verification. Is there anything specific you'd like me to elaborate on?"
+```
+
+Example 2: Code generation
+```
+User: "Write a function to debounce API calls"
+Agent: [Generates debounce function with explanation]
+Agent: "Here's a debounce function implementation. Would you like me to explain how it works or modify it for your specific use case?"
+```
+
+Example 3: Debugging help
+```
+User: "Why am I getting 'Cannot read property of undefined'?"
+Agent: "This error occurs when... [explanation]"
+Agent: "To fix this, you can... [solutions]"
+Agent: "Would you like me to review your code to identify the exact cause?"
+```
 
 ---
 
@@ -804,31 +864,177 @@ User Review (Web UI)
 
 ## Verification System
 
-### Automated Verification
+### Automated Verification (Workflow-Specific)
 
-After phase completion, a verification agent checks:
+**CRITICAL**: Verification criteria differ based on workflow type. The verification agent must identify the task type and apply the correct criteria.
 
-**Phase 1 (Planning)**:
-- Document existence (all 9 files)
-- Minimum length (≥500 chars each)
-- No placeholders (`[TODO]`, `[Insert X]`)
-- Section completeness
-- Information consistency
+### Verification for Phase-A (create_app)
 
-**Phase 2 (Design)**:
-- Document existence (all 5 files)
-- Data model defined with types
-- API specs include methods, paths, request/response
-- Architecture diagram or description present
-- Designs are specific and feasible
+After each phase completion, verification agent checks:
 
-**Phase 3 (Development)**:
-- Project structure correct
-- Key files present (package.json, etc.)
-- Tests included
-- `.env` in `.gitignore`
-- No hardcoded secrets
-- README with setup instructions
+**Phase 1 (Planning) - 9 Documents**:
+- ✅ All 9 files exist: `docs/planning/01_idea.md` through `09_roadmap.md`
+- ✅ Each document ≥500 characters
+- ✅ No placeholders: `[TODO]`, `[TBD]`, `[Insert X]`, `Coming soon`, `To be defined`
+- ✅ Section completeness (all sections from guide filled)
+- ✅ Information consistency:
+  - Tech stack consistent between 08_tech.md and future phases
+  - Features in 07_features.md align with product scope in 06_product.md
+  - Target users consistent between 03_persona.md and other docs
+- ✅ Proper markdown formatting
+- ✅ Specific content (not generic templates)
+
+**Phase 2 (Design) - 5 Documents**:
+- ✅ All 5 files exist: `docs/design/01_screen.md` through `05_architecture.md`
+- ✅ Each document ≥500 characters
+- ✅ Data model defined with specifics:
+  - Entity names listed
+  - Fields with types (string, number, boolean, etc.)
+  - Relationships documented
+- ✅ API specs complete:
+  - HTTP methods (GET, POST, PUT, DELETE)
+  - Paths (e.g., `/api/users/:id`)
+  - Request body structure
+  - Response structure
+  - Status codes
+- ✅ Architecture diagram or detailed description present
+- ✅ Designs are specific and feasible (not vague)
+- ✅ Consistency with Phase 1:
+  - Tech stack matches 08_tech.md
+  - Features match 07_features.md
+
+**Phase 3 (Development) - Codebase**:
+- ✅ Project structure correct for chosen tech stack
+- ✅ Key files present:
+  - `package.json` (Node.js) or equivalent
+  - `.gitignore`
+  - `README.md`
+  - Configuration files
+- ✅ Tests included (unit, integration, or e2e)
+- ✅ Tests are passing
+- ✅ `.env` listed in `.gitignore`
+- ✅ `.env.example` provided (if env vars needed)
+- ✅ No hardcoded secrets (API keys, passwords, tokens)
+- ✅ README includes:
+  - Project description
+  - Installation steps
+  - How to run
+  - How to test
+  - Environment variables needed
+- ✅ Code quality:
+  - No syntax errors
+  - No obvious bugs
+  - Proper error handling
+  - Comments where needed
+
+### Verification for Phase-B (modify_app)
+
+**Phase 1 (Analysis) - 1 Document**:
+- ✅ File exists: `docs/analysis/current_state.md`
+- ✅ Document ≥1000 characters
+- ✅ Project structure documented
+- ✅ Key components identified
+- ✅ Dependencies listed
+- ✅ Impact assessment provided
+- ✅ Areas to modify clearly identified
+- ✅ Analysis is accurate (verified against actual codebase)
+
+**Phase 2 (Planning) - 1 Document**:
+- ✅ File exists: `docs/planning/modification_plan.md`
+- ✅ Document ≥800 characters
+- ✅ Requirements clearly defined
+- ✅ File-level change plan provided:
+  - Files to create (with purpose)
+  - Files to modify (with changes)
+  - Files to delete (with reason)
+- ✅ Risk assessment included
+- ✅ Testing strategy defined
+- ✅ Plan is realistic and specific
+
+**Phase 3 (Implementation) - Modified Code**:
+- ✅ All planned changes implemented
+- ✅ Existing functionality preserved (no unintended breaking changes)
+- ✅ Code style matches existing patterns
+- ✅ All imports and references updated
+- ✅ Documentation updated to reflect changes
+- ✅ New dependencies documented (if any)
+- ✅ Configuration files updated (if needed)
+- ✅ `.env.example` updated (if new env vars added)
+- ✅ No hardcoded secrets
+- ✅ Project builds without errors
+
+**Phase 4 (Testing) - Test Results**:
+- ✅ Test results documented
+- ✅ All existing tests still pass (or updated appropriately)
+- ✅ New tests added for new functionality
+- ✅ New tests pass
+- ✅ Manual testing documented
+- ✅ No regressions identified
+
+### Verification for Phase-C (workflow)
+
+**Phase 1 (Planning) - Workflow Requirements**:
+- ✅ File exists: `docs/planning/workflow_requirements.md`
+- ✅ Document ≥800 characters
+- ✅ Workflow overview provided
+- ✅ Trigger type and configuration defined
+- ✅ Workflow steps listed (high-level)
+- ✅ External integrations identified
+- ✅ Error handling strategy specified
+- ✅ Success criteria defined
+- ✅ Requirements are specific and actionable
+
+**Phase 2 (Design) - Workflow Logic**:
+- ✅ File exists: `docs/design/workflow_design.md`
+- ✅ Document ≥1000 characters
+- ✅ Workflow diagram provided (text or mermaid)
+- ✅ All steps defined in detail:
+  - Input, action, output
+  - Error handling, retries
+- ✅ Conditions and branching logic specified
+- ✅ Data flow documented
+- ✅ Integration specifications complete:
+  - API endpoints, methods
+  - Authentication methods
+  - Request/response structures
+- ✅ State management defined (if needed)
+- ✅ Design is feasible and complete
+
+**Phase 3 (Development) - Workflow Code**:
+- ✅ Project structure appropriate for workflow
+- ✅ Trigger handlers implemented (schedule/webhook/manual/event)
+- ✅ All workflow steps implemented
+- ✅ Integration clients implemented
+- ✅ Error handling with retries
+- ✅ Configuration via env vars (no hardcoded credentials)
+- ✅ Tests included:
+  - Unit tests for steps
+  - Integration tests for external services
+  - End-to-end workflow tests
+- ✅ Tests passing
+- ✅ README with setup and usage instructions
+- ✅ `.env.example` provided
+- ✅ Code builds and runs without errors
+
+**Phase 4 (Testing) - Workflow Execution**:
+- ✅ All trigger types tested
+- ✅ All steps tested individually
+- ✅ All integrations tested
+- ✅ End-to-end workflow tested
+- ✅ Error scenarios tested
+- ✅ Test results documented
+- ✅ All tests passing
+- ✅ Performance acceptable
+
+### Verification for Type-D (custom)
+
+**No formal verification** - custom tasks have no structured deliverables or phases.
+
+Quality assessed by:
+- User satisfaction with response
+- Accuracy of information provided
+- Helpfulness of answer
+- Completeness of solution
 
 ### Auto-Rework
 
