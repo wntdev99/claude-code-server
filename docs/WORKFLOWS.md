@@ -2,7 +2,33 @@
 
 ## Overview
 
-Claude Code Server uses **phase-based workflows** to structure task execution. Each task type follows a specific workflow with defined phases, steps, and deliverables.
+Claude Code Server uses **phase-based workflows** to structure task execution. **CRITICAL: Each task type follows a COMPLETELY DIFFERENT workflow** with different phases, steps, deliverables, and agent behaviors.
+
+**Four distinct workflow types**:
+- **Phase-A (create_app)**: Full app development cycle - Planning → Design → Development → Testing
+- **Phase-B (modify_app)**: Existing code modification - Analysis → Planning → Implementation → Testing
+- **Phase-C (workflow)**: Workflow automation - Planning → Design → Development → Testing (workflow-focused)
+- **Type-D (custom)**: Free-form conversation - No structured phases
+
+**Sub-agents must identify the task type and follow the corresponding workflow exactly.**
+
+## Workflow Type Comparison
+
+| Aspect | Phase-A (create_app) | Phase-B (modify_app) | Phase-C (workflow) | Type-D (custom) |
+|--------|---------------------|---------------------|-------------------|----------------|
+| **Purpose** | Create new app from scratch | Modify existing app | Create workflow automation | Free-form tasks |
+| **Phase 1** | Planning (9 docs) | Analysis (1 doc) | Planning (workflow reqs) | N/A (single phase) |
+| **Phase 2** | Design (5 docs) | Planning (1 doc) | Design (workflow logic) | N/A |
+| **Phase 3** | Development (code) | Implementation (code) | Development (code) | N/A |
+| **Phase 4** | Testing | Testing | Testing | N/A |
+| **Total Documents** | 14 documents | 2 documents | 2 documents | None |
+| **Guide Documents** | All 24 guides | Autonomous (no guides) | Adapt Phase-A guides | None |
+| **Starting Point** | Blank slate | Existing codebase | Blank slate | User prompt |
+| **Code Changes** | Create new codebase | Modify existing code | Create workflow code | Varies |
+| **Verification** | 3 verification guides | Custom verification | Custom verification | None |
+| **Review Gates** | After each phase (4 gates) | After each phase (4 gates) | After each phase (4 gates) | None |
+| **Key Challenge** | Complete planning & design | Preserve existing functionality | Integration & triggers | User satisfaction |
+| **Example Task** | "Build a todo app with React" | "Add dark mode to existing app" | "Send Slack msg on GitHub PR" | "Explain WebSockets" |
 
 ## Task Type Workflows
 
@@ -90,6 +116,64 @@ Phase 4: Testing (테스트) - Validation
 - Quality assurance checks
 - Final validation before completion
 
+### Sub-Agent Instructions for create_app (Phase-A)
+
+**Phase 1: Planning (9 Steps)**
+
+**What to do**:
+1. Read ALL 9 planning guides in `/guide/planning/` (01_idea.md through 09_roadmap.md)
+2. Generate 9 comprehensive planning documents in `docs/planning/`
+3. Each document must be ≥500 characters with complete, specific content
+4. NO placeholders like "TODO", "TBD", "[Insert X]", "Coming soon"
+5. Ensure consistency across all documents (e.g., tech stack in 08_tech matches architecture in Phase 2)
+
+**Critical requirements**:
+- All 9 files must exist: `docs/planning/01_idea.md` through `09_roadmap.md`
+- Each file must have proper sections as defined in guide documents
+- Use specific examples, not generic descriptions
+- Define clear target users, features, and business model
+
+**Phase 2: Design (5 Steps)**
+
+**What to do**:
+1. Read ALL 5 design guides in `/guide/design/` (01_screen.md through 05_architecture.md)
+2. Generate 5 detailed design documents in `docs/design/`
+3. Create specific data models with field types (not just entity names)
+4. Design complete API specs with methods, paths, request/response schemas
+5. Document system architecture with components and data flow
+
+**Critical requirements**:
+- All 5 files must exist: `docs/design/01_screen.md` through `05_architecture.md`
+- Data models must include: entity names, fields, types, relationships
+- API specs must include: HTTP method, path, request body, response, status codes
+- Architecture must be feasible and match the tech stack from Phase 1
+
+**Phase 3: Development (6 Steps)**
+
+**What to do**:
+1. Read ALL 6 development guides in `/guide/development/` (01_setup.md through 06_deploy.md)
+2. Create complete, working codebase following the design from Phase 2
+3. Implement all features defined in Phase 1 planning documents
+4. Write tests (unit, integration, or e2e as appropriate)
+5. Create deployment configuration
+6. Write comprehensive README.md with setup instructions
+
+**Critical requirements**:
+- Project structure matches the tech stack (e.g., Next.js structure for Next.js project)
+- All key files present: package.json, .gitignore, README.md, config files
+- Tests included with passing status
+- No hardcoded secrets (use .env with .env.example)
+- .env file must be in .gitignore
+- README includes: installation steps, how to run, how to test
+
+**Phase 4: Testing**
+
+**What to do**:
+1. Verification agent runs automated checks
+2. If verification passes, user review is created
+3. If verification fails, agent reworks (max 3 attempts)
+4. Final validation before task completion
+
 ---
 
 ### 2. modify_app - Existing Application Modification
@@ -99,50 +183,205 @@ Phase 4: Testing (테스트) - Validation
 **Workflow**: 4-Phase-B
 
 ```
-Phase 1: Analysis - Understand current state
+Phase 1: Analysis (분석) - Understand current state
     ↓
-Phase 2: Planning - Plan modifications
+Phase 2: Planning (계획) - Plan modifications
     ↓
-Phase 3: Implementation - Execute changes
+Phase 3: Implementation (구현) - Execute changes
     ↓
-Phase 4: Testing - Verify changes
+Phase 4: Testing (검증) - Verify changes
 ```
 
 #### Phase 1: Analysis (3 Steps)
 
-1. **Codebase Analysis**: Read and understand existing code
-2. **Dependency Analysis**: Identify dependencies and constraints
-3. **Impact Analysis**: Assess impact of changes
+**Purpose**: Thoroughly understand the existing codebase before making any changes
+
+| Step | Task | Details |
+|------|------|---------|
+| 1 | **Codebase Analysis** | Read and understand existing code structure, patterns, architecture |
+| 2 | **Dependency Analysis** | Identify dependencies, external services, database schemas |
+| 3 | **Impact Analysis** | Assess which components will be affected by the requested changes |
 
 **Deliverable**: `docs/analysis/current_state.md`
 
+**Document must include**:
+- Project structure overview
+- Key components and their responsibilities
+- Data models and database schema
+- API endpoints (if applicable)
+- External dependencies and services
+- Current implementation patterns
+- Areas to be modified
+- Potential impact on other components
+
+**Verification Criteria**:
+- ✅ Complete codebase structure documented
+- ✅ All relevant files and components identified
+- ✅ Dependencies clearly listed
+- ✅ Impact assessment is specific and accurate
+- ✅ Document ≥1000 characters
+
 #### Phase 2: Planning (4 Steps)
 
-1. **Requirements Definition**: Define what needs to change
-2. **Modification Plan**: Plan specific changes
-3. **Risk Assessment**: Identify risks and mitigation
-4. **Testing Strategy**: Plan how to verify changes
+**Purpose**: Create a detailed plan for modifications with risk assessment
+
+| Step | Task | Details |
+|------|------|---------|
+| 1 | **Requirements Definition** | Define exactly what needs to change and why |
+| 2 | **Modification Plan** | Plan specific code changes, file by file |
+| 3 | **Risk Assessment** | Identify risks and mitigation strategies |
+| 4 | **Testing Strategy** | Plan how to verify changes work and don't break existing features |
 
 **Deliverable**: `docs/planning/modification_plan.md`
 
+**Document must include**:
+- Clear requirements (what to add/modify/remove)
+- Detailed modification plan:
+  - Files to be created
+  - Files to be modified (with specific changes)
+  - Files to be deleted
+- Step-by-step implementation approach
+- Risk assessment:
+  - Breaking changes risks
+  - Performance impact
+  - Security considerations
+  - Backward compatibility
+- Testing strategy:
+  - Which existing tests must pass
+  - New tests to be written
+  - Manual testing scenarios
+
+**Verification Criteria**:
+- ✅ Requirements clearly defined
+- ✅ File-level change plan provided
+- ✅ Risks identified with mitigation strategies
+- ✅ Testing strategy is comprehensive
+- ✅ Document ≥800 characters
+
 #### Phase 3: Implementation (6 Steps)
 
-1. **Code Modification**: Implement changes
-2. **Refactoring**: Improve code quality if needed
-3. **Documentation Update**: Update docs
-4. **Dependency Update**: Update dependencies if needed
-5. **Configuration Update**: Update configs
-6. **Build Verification**: Ensure project builds
+**Purpose**: Carefully implement planned changes while preserving existing functionality
+
+| Step | Task | Details |
+|------|------|---------|
+| 1 | **Code Modification** | Implement the planned changes to existing files |
+| 2 | **Refactoring** | Improve code quality if needed (without changing behavior) |
+| 3 | **Documentation Update** | Update inline comments, README, and other docs |
+| 4 | **Dependency Update** | Update package.json, requirements.txt, etc. if needed |
+| 5 | **Configuration Update** | Update config files (.env.example, configs, etc.) |
+| 6 | **Build Verification** | Ensure project builds without errors |
 
 **Deliverable**: Modified codebase
 
+**Critical requirements**:
+- Preserve existing functionality (no unintended breaking changes)
+- Follow existing code style and patterns
+- Update all affected imports and references
+- Keep existing tests passing (unless intentionally changed)
+- Add new tests for new functionality
+- Update documentation to reflect changes
+- If new dependencies added, document them
+- If config changes needed, update .env.example
+
+**Verification Criteria**:
+- ✅ All planned changes implemented
+- ✅ Existing tests still pass (or properly updated)
+- ✅ New tests added for new functionality
+- ✅ Code builds without errors
+- ✅ Documentation updated
+- ✅ No hardcoded secrets added
+- ✅ Code style matches existing patterns
+
 #### Phase 4: Testing (3 Steps)
 
-1. **Run Existing Tests**: Ensure no regressions
-2. **Add New Tests**: Test new functionality
-3. **Manual Testing**: Verify changes work
+**Purpose**: Verify modifications work correctly and don't introduce regressions
 
-**Deliverable**: Test results
+| Step | Task | Details |
+|------|------|---------|
+| 1 | **Run Existing Tests** | Ensure all existing tests pass (no regressions) |
+| 2 | **Add New Tests** | Write and run tests for new functionality |
+| 3 | **Manual Testing** | Manually verify changes work as expected |
+
+**Deliverable**: Test results and verification report
+
+**Testing checklist**:
+- [ ] All existing unit tests pass
+- [ ] All existing integration tests pass
+- [ ] All existing e2e tests pass (if applicable)
+- [ ] New tests written for new features
+- [ ] New tests pass
+- [ ] Manual testing performed:
+  - [ ] New functionality works
+  - [ ] Existing functionality not broken
+  - [ ] Edge cases handled
+  - [ ] Error handling works
+- [ ] No console errors
+- [ ] Performance acceptable
+
+**Verification Criteria**:
+- ✅ Test results documented
+- ✅ All tests passing (or failures explained)
+- ✅ Manual testing scenarios executed
+- ✅ No regressions identified
+
+### Sub-Agent Instructions for modify_app (Phase-B)
+
+**CRITICAL DIFFERENCES from create_app**:
+- Start with EXISTING codebase (not blank slate)
+- NO planning guides to read (analyze autonomously)
+- Focus on PRESERVATION of existing functionality
+- Smaller, focused deliverables (2 docs instead of 14)
+
+**Phase 1: Analysis - What to do**:
+1. Request access to existing codebase (may trigger dependency request for file access)
+2. Read and understand the entire project structure
+3. Identify key components, data models, APIs
+4. Document current state thoroughly in `docs/analysis/current_state.md`
+5. Identify exactly which parts need to be modified
+
+**DO NOT**:
+- Make any code changes yet
+- Skip analysis phase
+- Assume how things work without reading code
+
+**Phase 2: Planning - What to do**:
+1. Define clear requirements for what needs to change
+2. Create file-by-file modification plan
+3. Assess risks (breaking changes, dependencies, performance)
+4. Plan testing strategy (existing tests + new tests)
+5. Document everything in `docs/planning/modification_plan.md`
+
+**DO NOT**:
+- Start implementing without a plan
+- Ignore risks and backward compatibility
+- Forget to plan for testing
+
+**Phase 3: Implementation - What to do**:
+1. Follow the modification plan exactly
+2. Make changes incrementally (one component at a time)
+3. Preserve existing code style and patterns
+4. Update all related files (imports, configs, docs)
+5. Ensure project builds after each change
+6. Write tests for new functionality
+
+**DO NOT**:
+- Make unplanned changes
+- Break existing functionality
+- Ignore existing code style
+- Forget to update documentation
+- Add hardcoded secrets
+
+**Phase 4: Testing - What to do**:
+1. Run all existing tests and verify they pass
+2. Run new tests for new functionality
+3. Perform manual testing of changed features
+4. Document test results
+5. Verify no regressions introduced
+
+**DO NOT**:
+- Skip testing existing functionality
+- Assume existing tests are sufficient for new features
+- Ignore test failures
 
 ---
 
@@ -153,20 +392,352 @@ Phase 4: Testing - Verify changes
 **Workflow**: 4-Phase-C
 
 ```
-Phase 1: Planning - Define workflow requirements
+Phase 1: Planning (기획) - Define workflow requirements
     ↓
-Phase 2: Design - Design workflow logic
+Phase 2: Design (설계) - Design workflow logic
     ↓
-Phase 3: Development - Implement workflow
+Phase 3: Development (개발) - Implement workflow
     ↓
-Phase 4: Testing - Test workflow execution
+Phase 4: Testing (테스트) - Test workflow execution
 ```
 
-Similar to `create_app` but focused on workflow-specific concerns:
-- Triggers (schedule, webhook, manual, event)
-- Steps (actions, conditions, loops)
-- Integrations (external services)
-- Error handling and retries
+**Workflow-Specific Focus**:
+- **Triggers**: Schedule (cron), webhook, manual, event-based
+- **Steps**: Actions, conditions, loops, parallel execution
+- **Integrations**: External services (Slack, GitHub, email, databases)
+- **Error Handling**: Retries, fallbacks, notifications
+- **State Management**: Workflow state, data passing between steps
+
+#### Phase 1: Planning (Workflow Requirements)
+
+**Purpose**: Define comprehensive workflow requirements including triggers and integrations
+
+**Deliverable**: `docs/planning/workflow_requirements.md`
+
+**Document must include**:
+
+1. **Workflow Overview**:
+   - Name and purpose
+   - What problem it solves
+   - Expected outcomes
+
+2. **Trigger Definition**:
+   - **Type**: schedule | webhook | manual | event
+   - **Configuration**:
+     - Schedule: Cron expression (e.g., `0 9 * * 1-5` for weekdays at 9am)
+     - Webhook: Expected payload structure, authentication
+     - Manual: Input parameters
+     - Event: Event source and filters
+
+3. **Workflow Steps** (high-level):
+   - Step 1: Action name and purpose
+   - Step 2: Action name and purpose
+   - ...
+   - Conditions and branching logic
+   - Loop/iteration requirements
+
+4. **External Integrations**:
+   - Service 1: Purpose, API used, authentication method
+   - Service 2: Purpose, API used, authentication method
+   - ...
+
+5. **Data Requirements**:
+   - Input data (from trigger)
+   - Data passed between steps
+   - Output data (result)
+
+6. **Error Handling Requirements**:
+   - Retry strategies
+   - Fallback behaviors
+   - Error notifications
+
+7. **Success Criteria**:
+   - How to determine workflow succeeded
+   - Expected execution time
+   - Performance requirements
+
+**Verification Criteria**:
+- ✅ Trigger type and config clearly defined
+- ✅ All workflow steps listed
+- ✅ External integrations identified
+- ✅ Error handling strategy specified
+- ✅ Document ≥800 characters
+
+#### Phase 2: Design (Workflow Logic)
+
+**Purpose**: Design detailed workflow logic with step-by-step execution plan
+
+**Deliverable**: `docs/design/workflow_design.md`
+
+**Document must include**:
+
+1. **Workflow Diagram** (text-based or mermaid):
+```
+Trigger → Step 1 → Condition → Step 2A
+                            └→ Step 2B → Step 3 → End
+```
+
+2. **Step Definitions** (detailed):
+
+For each step:
+```
+Step N: [Name]
+  Purpose: What this step does
+  Input: Data received from previous step
+  Action: Specific action to perform
+  Integration: External service API call (if any)
+  Output: Data produced for next step
+  Error Handling: What happens if this step fails
+  Retry: Retry count and delay
+```
+
+3. **Condition Logic**:
+   - If/else conditions
+   - Switch cases
+   - Filtering logic
+
+4. **Loop Logic** (if applicable):
+   - Iteration over arrays
+   - While loop conditions
+   - Break/continue criteria
+
+5. **Data Flow**:
+   - Data structure at each step
+   - Data transformations
+   - Variables and state
+
+6. **Integration Specifications**:
+
+For each integration:
+```
+Service: [Name]
+  API Endpoint: [URL]
+  Method: GET/POST/PUT/DELETE
+  Authentication: API key / OAuth / Basic
+  Request: [Structure]
+  Response: [Structure]
+  Rate Limits: [Limits]
+  Error Codes: [Codes and meanings]
+```
+
+7. **State Management**:
+   - Workflow state structure
+   - State persistence (if needed)
+   - State cleanup
+
+**Verification Criteria**:
+- ✅ Workflow diagram provided
+- ✅ All steps defined in detail
+- ✅ Conditions and loops specified
+- ✅ Data flow documented
+- ✅ Integration specs complete
+- ✅ Document ≥1000 characters
+
+#### Phase 3: Development (Workflow Implementation)
+
+**Purpose**: Implement the workflow with all triggers, steps, and integrations
+
+**Deliverable**: Complete workflow codebase
+
+**Implementation must include**:
+
+1. **Project Structure**:
+```
+workflow-project/
+├── src/
+│   ├── triggers/
+│   │   ├── schedule.js       # Schedule trigger handler
+│   │   ├── webhook.js        # Webhook trigger handler
+│   │   └── manual.js         # Manual trigger handler
+│   ├── steps/
+│   │   ├── step1.js          # Each workflow step
+│   │   ├── step2.js
+│   │   └── ...
+│   ├── integrations/
+│   │   ├── slack.js          # External service clients
+│   │   ├── github.js
+│   │   └── ...
+│   ├── utils/
+│   │   ├── error-handler.js  # Error handling utilities
+│   │   └── retry.js          # Retry logic
+│   └── workflow.js           # Main workflow orchestrator
+├── tests/
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   └── e2e/                  # End-to-end workflow tests
+├── config/
+│   ├── workflow.config.js    # Workflow configuration
+│   └── integrations.config.js
+├── .env.example              # Environment variable template
+├── package.json
+└── README.md
+```
+
+2. **Trigger Implementation**:
+   - Schedule: Cron job setup
+   - Webhook: HTTP endpoint with validation
+   - Manual: CLI or API endpoint
+   - Event: Event listener and handler
+
+3. **Step Implementation**:
+   - Each step as a separate function/class
+   - Input validation
+   - Action execution
+   - Output generation
+   - Error handling with retries
+
+4. **Integration Clients**:
+   - API client for each external service
+   - Authentication handling
+   - Request/response transformation
+   - Error handling
+   - Rate limit handling
+
+5. **Workflow Orchestrator**:
+   - Execute steps in correct order
+   - Handle conditions and branching
+   - Manage data flow between steps
+   - Handle errors and retries
+   - Log execution progress
+
+6. **Configuration**:
+   - Workflow settings (timeouts, retries, etc.)
+   - Integration credentials (via env vars)
+   - Environment-specific configs
+
+7. **Tests**:
+   - Unit tests for each step
+   - Integration tests for external services (with mocks)
+   - End-to-end workflow tests
+   - Error scenario tests
+
+**Verification Criteria**:
+- ✅ All triggers implemented
+- ✅ All steps implemented
+- ✅ All integrations working
+- ✅ Error handling with retries
+- ✅ Tests included and passing
+- ✅ Configuration via env vars
+- ✅ No hardcoded credentials
+- ✅ README with setup and usage instructions
+
+#### Phase 4: Testing (Workflow Execution)
+
+**Purpose**: Test all trigger types, workflow steps, and error scenarios
+
+**Deliverable**: Test results and execution logs
+
+**Testing checklist**:
+
+1. **Trigger Testing**:
+   - [ ] Schedule trigger fires at correct times
+   - [ ] Webhook receives and validates payloads correctly
+   - [ ] Manual trigger accepts correct inputs
+   - [ ] Event trigger listens and responds to events
+
+2. **Step Testing**:
+   - [ ] Each step executes correctly in isolation
+   - [ ] Steps handle inputs correctly
+   - [ ] Steps produce expected outputs
+   - [ ] Conditions and branching work correctly
+   - [ ] Loops iterate correctly
+
+3. **Integration Testing**:
+   - [ ] External service calls succeed
+   - [ ] Authentication works
+   - [ ] Request/response handling correct
+   - [ ] Rate limits respected
+   - [ ] API errors handled gracefully
+
+4. **End-to-End Testing**:
+   - [ ] Complete workflow executes successfully
+   - [ ] Data flows correctly between steps
+   - [ ] Final output is correct
+   - [ ] Execution time acceptable
+
+5. **Error Scenario Testing**:
+   - [ ] Step failures trigger retries
+   - [ ] Max retries exceeded triggers fallback
+   - [ ] Network errors handled
+   - [ ] Invalid inputs rejected
+   - [ ] Error notifications sent
+
+6. **Performance Testing**:
+   - [ ] Workflow completes within expected time
+   - [ ] No memory leaks
+   - [ ] Resource usage acceptable
+
+**Verification Criteria**:
+- ✅ All tests documented and executed
+- ✅ All tests passing (or failures explained)
+- ✅ Error scenarios tested
+- ✅ Execution logs captured
+- ✅ Performance acceptable
+
+### Sub-Agent Instructions for workflow (Phase-C)
+
+**CRITICAL DIFFERENCES from create_app and modify_app**:
+- Focus on **automation and integration** (not full app)
+- Trigger-driven execution (not user-driven UI)
+- External service integrations are CRITICAL
+- Error handling and retries are ESSENTIAL
+- Smaller codebase but more complex orchestration
+
+**Phase 1: Planning - What to do**:
+1. Clearly define the workflow trigger (schedule/webhook/manual/event)
+2. Break down the workflow into discrete steps
+3. Identify ALL external services needed
+4. Plan error handling and retry strategies
+5. Document in `docs/planning/workflow_requirements.md`
+
+**DO NOT**:
+- Create vague step definitions
+- Forget to specify trigger configuration
+- Ignore error handling
+- Miss external service requirements
+
+**Phase 2: Design - What to do**:
+1. Create workflow diagram showing all steps and conditions
+2. Define each step in detail (input, action, output, errors)
+3. Specify API calls for each integration
+4. Design data flow between steps
+5. Document in `docs/design/workflow_design.md`
+
+**DO NOT**:
+- Skip workflow diagram
+- Leave integration specs incomplete
+- Ignore data transformation requirements
+- Forget about state management
+
+**Phase 3: Development - What to do**:
+1. Create proper project structure (triggers, steps, integrations)
+2. Implement trigger handlers
+3. Implement each workflow step
+4. Create integration clients with error handling
+5. Build workflow orchestrator
+6. Write comprehensive tests
+7. Document setup and usage in README
+
+**DO NOT**:
+- Hardcode credentials (use env vars)
+- Skip error handling and retries
+- Forget integration tests
+- Ignore rate limits for external APIs
+- Create monolithic code (separate concerns)
+
+**Phase 4: Testing - What to do**:
+1. Test each trigger type
+2. Test each step individually
+3. Test all integrations (with mocks if needed)
+4. Run end-to-end workflow tests
+5. Test error scenarios and retries
+6. Document all test results
+
+**DO NOT**:
+- Skip testing error scenarios
+- Forget to test all trigger types
+- Ignore integration testing
+- Assume external APIs are always available
 
 ---
 

@@ -86,16 +86,117 @@ npm test             # Run tests
 
 ### 1. Task Types & Workflows
 
-Four task types with distinct workflows:
+**IMPORTANT**: Each task type follows a DIFFERENT workflow with different phases and deliverables. Sub-agents must follow the specific workflow for the task type.
 
-- **`create_app`**: New app creation → Planning (9 steps) → Design (5 steps) → Development (6 steps) → Testing
-- **`modify_app`**: Existing app modification → Analysis → Planning → Implementation → Testing
-- **`workflow`**: Workflow automation → Planning → Design → Development → Testing
-- **`custom`**: Free-form conversation with prompt-based execution
+#### Workflow Phase-A: `create_app` (New Application Development)
 
-### 2. Phase-Based Execution
+**Purpose**: Create new applications from scratch
 
-Sub-agents execute tasks in phases. Each phase follows this review process:
+**Phases**:
+```
+Phase 1: Planning (기획) - 9 steps
+  → Deliverables: 9 planning documents in docs/planning/
+  → Guide: /guide/planning/*.md
+  → Verification: /guide/verification/phase1_verification.md
+    ↓
+Phase 2: Design (설계) - 5 steps
+  → Deliverables: 5 design documents in docs/design/
+  → Guide: /guide/design/*.md
+  → Verification: /guide/verification/phase2_verification.md
+    ↓
+Phase 3: Development (개발) - 6 steps
+  → Deliverables: Complete working codebase
+  → Guide: /guide/development/*.md
+  → Verification: /guide/verification/phase3_verification.md
+    ↓
+Phase 4: Testing (테스트)
+  → Final validation and quality assurance
+```
+
+**Sub-agent instructions for create_app**:
+- Read all planning guides (01_idea through 09_roadmap) for Phase 1
+- Generate 9 comprehensive planning documents (≥500 chars each, no placeholders)
+- Read all design guides (01_screen through 05_architecture) for Phase 2
+- Generate 5 detailed design documents with specific data models and API specs
+- Read all development guides (01_setup through 06_deploy) for Phase 3
+- Generate complete, working codebase with tests and deployment config
+
+#### Workflow Phase-B: `modify_app` (Existing Application Modification)
+
+**Purpose**: Modify, enhance, or fix existing applications
+
+**Phases**:
+```
+Phase 1: Analysis (분석) - 3 steps
+  → Deliverables: docs/analysis/current_state.md
+  → Steps: Codebase analysis, Dependency analysis, Impact analysis
+    ↓
+Phase 2: Planning (계획) - 4 steps
+  → Deliverables: docs/planning/modification_plan.md
+  → Steps: Requirements definition, Modification plan, Risk assessment, Testing strategy
+    ↓
+Phase 3: Implementation (구현) - 6 steps
+  → Deliverables: Modified codebase
+  → Steps: Code modification, Refactoring, Docs update, Dependency update, Config update, Build verification
+    ↓
+Phase 4: Testing (검증) - 3 steps
+  → Deliverables: Test results
+  → Steps: Run existing tests, Add new tests, Manual testing
+```
+
+**Sub-agent instructions for modify_app**:
+- Phase 1: Thoroughly analyze existing codebase, identify all dependencies and constraints
+- Phase 2: Create detailed modification plan with risk assessment
+- Phase 3: Implement changes carefully, ensure no breaking changes to existing functionality
+- Phase 4: Verify all existing tests pass, add tests for new functionality
+
+#### Workflow Phase-C: `workflow` (Workflow Automation)
+
+**Purpose**: Create automated workflows and integrations
+
+**Phases**:
+```
+Phase 1: Planning (기획) - Workflow-specific planning
+  → Deliverables: docs/planning/workflow_requirements.md
+  → Focus: Triggers, integrations, error handling, scheduling
+    ↓
+Phase 2: Design (설계) - Workflow logic design
+  → Deliverables: docs/design/workflow_design.md
+  → Focus: Step definitions, conditions, loops, state management
+    ↓
+Phase 3: Development (개발) - Workflow implementation
+  → Deliverables: Workflow code with integrations
+  → Focus: Trigger implementation, action handlers, integration connectors
+    ↓
+Phase 4: Testing (테스트) - Workflow execution testing
+  → Deliverables: Test results and execution logs
+  → Focus: Trigger testing, end-to-end workflow testing, error scenarios
+```
+
+**Sub-agent instructions for workflow**:
+- Phase 1: Define workflow requirements including triggers (schedule, webhook, manual, event)
+- Phase 2: Design workflow logic with clear steps, conditions, and error handling
+- Phase 3: Implement workflow with external service integrations
+- Phase 4: Test all trigger types and error scenarios
+
+#### Workflow Type-D: `custom` (Free-form Conversation)
+
+**Purpose**: Handle miscellaneous tasks that don't fit structured workflows
+
+**Phases**: Single-phase autonomous execution
+```
+User prompt → Agent response → Iterative conversation
+```
+
+**Sub-agent instructions for custom**:
+- No fixed phases - respond naturally to user requests
+- Use autonomous decision-making
+- No formal deliverables required
+- Signal completion when task is done
+
+### 2. Phase-Based Execution Process
+
+**All workflow types (except custom) follow this review process after each phase**:
 
 1. **Agent signals completion**: `=== PHASE N COMPLETE ===`
 2. **Platform pauses agent** (Agent Manager sends SIGTSTP)
@@ -108,7 +209,7 @@ Sub-agents execute tasks in phases. Each phase follows this review process:
 9. **If approved**: Agent proceeds to next phase
 10. **If changes requested**: Agent addresses feedback and re-submits for re-verification
 
-See `/docs/WORKFLOWS.md` for detailed verification criteria per phase.
+See `/docs/WORKFLOWS.md` for detailed workflow documentation and verification criteria per phase.
 
 ### 3. Platform-Agent Communication Protocols
 
@@ -203,11 +304,18 @@ Read `packages/agent-manager/CLAUDE.md` for detailed guidance. Key points:
 
 Read `packages/sub-agent/CLAUDE.md` for detailed guidance. Key points:
 - Execute as Claude Code CLI instance via `child_process`
-- Read and follow guide documents in `/guide/`
+- **Identify task type** and follow the correct workflow (Phase-A/B/C/D)
+- Read and follow **task-type-specific guide documents** in `/guide/`
 - Generate high-quality deliverables (no placeholders, complete content)
 - Use communication protocols for dependencies and questions
-- Work autonomously within phase structure
+- Work autonomously within the specific phase structure for the task type
 - Signal phase completion clearly
+
+**Critical**: Sub-agents MUST follow different instructions based on task type:
+- **create_app** (Phase-A): Read planning/design/development guides, generate all planning docs → design docs → complete codebase
+- **modify_app** (Phase-B): Analyze existing code → plan modifications → implement changes → test
+- **workflow** (Phase-C): Define workflow requirements → design workflow logic → implement with integrations → test execution
+- **custom** (Type-D): No fixed phases, respond naturally to user requests
 
 ## Important Files to Reference
 
@@ -246,14 +354,74 @@ Shared packages:
 
 ## Guide Documents
 
-The 24 guide documents in `/guide/` are critical to sub-agent execution. They provide step-by-step instructions for:
-- **Planning** (9 guides): Market analysis, personas, features, tech stack, etc.
-- **Design** (5 guides): Screen design, data models, API specs, architecture
-- **Development** (6 guides): Project setup, data layer, business logic, UI, testing, deployment
-- **Verification** (3 guides): Quality criteria for each phase
-- **Review** (1 guide): Review process instructions
+The 24 guide documents in `/guide/` are critical to sub-agent execution. **Different workflow types use different guides**:
 
-Sub-agents read these guides at runtime to understand what to produce.
+### Guides for Phase-A (create_app)
+
+**Planning guides** (9 documents): `/guide/planning/`
+- 01_idea.md, 02_market.md, 03_persona.md, 04_user_journey.md, 05_business_model.md
+- 06_product.md, 07_features.md, 08_tech.md, 09_roadmap.md
+- Used in: Phase 1 (Planning)
+
+**Design guides** (5 documents): `/guide/design/`
+- 01_screen.md, 02_data_model.md, 03_task_flow.md, 04_api.md, 05_architecture.md
+- Used in: Phase 2 (Design)
+
+**Development guides** (6 documents): `/guide/development/`
+- 01_setup.md, 02_data.md, 03_logic.md, 04_ui.md, 05_testing.md, 06_deploy.md
+- Used in: Phase 3 (Development)
+
+**Verification guides** (3 documents): `/guide/verification/`
+- phase1_verification.md (for Phase 1 Planning)
+- phase2_verification.md (for Phase 2 Design)
+- phase3_verification.md (for Phase 3 Development)
+- Used by: Verification agents after each phase
+
+### Guides for Phase-B (modify_app)
+
+**Analysis phase**: Sub-agents create their own analysis based on existing codebase
+- No specific guide documents (agents analyze autonomously)
+
+**Planning/Implementation/Testing phases**: Sub-agents follow general software engineering best practices
+- Adapt Phase-A guides as needed for modification context
+
+### Guides for Phase-C (workflow)
+
+**Workflow-specific concerns** (to be created):
+- Trigger definitions (schedule, webhook, manual, event)
+- Step logic (actions, conditions, loops)
+- Integration patterns (external services)
+- Error handling and retry strategies
+
+Currently use Phase-A guides adapted for workflow context.
+
+### Guides for Type-D (custom)
+
+**No guides required**: Agents respond naturally to user prompts without structured deliverables.
+
+## Workflow Type Comparison
+
+**Quick reference for understanding the differences between workflow types**:
+
+| Aspect | Phase-A (create_app) | Phase-B (modify_app) | Phase-C (workflow) | Type-D (custom) |
+|--------|---------------------|---------------------|-------------------|----------------|
+| **Purpose** | Create new app from scratch | Modify existing app | Create workflow automation | Free-form tasks |
+| **Phase 1** | Planning (9 docs) | Analysis (1 doc) | Planning (workflow reqs) | N/A (single phase) |
+| **Phase 2** | Design (5 docs) | Planning (1 doc) | Design (workflow logic) | N/A |
+| **Phase 3** | Development (code) | Implementation (code) | Development (code) | N/A |
+| **Phase 4** | Testing | Testing | Testing | N/A |
+| **Main Guides** | /guide/planning/, /guide/design/, /guide/development/ | Autonomous analysis, adapt Phase-A guides | Adapt Phase-A guides for workflows | None |
+| **Deliverables** | 14 docs + codebase | 2 docs + modified code | 2 docs + workflow code | Varies |
+| **Starting Point** | Blank slate | Existing codebase | Blank slate (workflow-focused) | User prompt |
+| **Verification** | 3 verification guides | Adapted verification | Adapted verification | None |
+| **Review Gates** | After each phase | After each phase | After each phase | None |
+| **Key Focus** | Complete app (planning, design, implementation) | Careful modification (no breaking changes) | Automation (triggers, integrations) | User satisfaction |
+
+**When to use each type**:
+- **create_app**: "Build a todo app with React and Node.js"
+- **modify_app**: "Add dark mode to the existing app"
+- **workflow**: "Create a workflow that sends Slack notifications on GitHub events"
+- **custom**: "Explain how WebSockets work" or "Debug this error message"
 
 ## Working with Multiple Layers
 
@@ -272,12 +440,28 @@ Example: Adding a new dependency type
 
 ## Common Pitfalls
 
+### Platform-Level Pitfalls
 - **Don't spawn agents directly from Web Server**: Always go through Agent Manager
 - **Don't store secrets in plaintext**: Use encryption utilities from `shared` package
-- **Don't assume guide documents exist**: Sub-agents should gracefully handle missing guides
 - **Don't parse agent output with regex**: Use robust protocol parsers in Agent Manager
 - **Don't block SSE streams**: Keep connections alive with heartbeat events
 - **Don't hardcode phase logic**: Use phase definitions from workflow documentation
+
+### Sub-Agent Pitfalls (Workflow-Specific)
+- **Don't use wrong workflow guides**:
+  - create_app uses all planning/design/development guides
+  - modify_app analyzes existing code, doesn't use planning guides
+  - workflow adapts guides for automation context
+  - custom doesn't use guides at all
+- **Don't mix workflow types**: Each task type has distinct phases and deliverables
+- **Don't skip guides**: Sub-agents must read appropriate guides for their workflow type before each phase
+- **Don't assume guide documents exist**: Sub-agents should gracefully handle missing guides (especially for Phase-B and Phase-C)
+- **Don't create generic deliverables**:
+  - Phase-A needs 9 planning + 5 design docs + complete codebase
+  - Phase-B needs analysis doc + modification plan + modified code
+  - Phase-C needs workflow requirements + workflow design + workflow code
+  - Type-D has no fixed deliverables
+- **Don't ignore existing code**: Phase-B (modify_app) must analyze and preserve existing functionality
 
 ## Getting Started for New Contributors
 
