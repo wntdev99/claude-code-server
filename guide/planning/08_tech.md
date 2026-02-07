@@ -122,7 +122,6 @@
 ### 개발 도구
 - **IDE**: VS Code / Android Studio
 - **버전관리**: Git + GitHub
-- **디자인**: Figma
 ```
 
 ### 4. 기술 리스크 분석

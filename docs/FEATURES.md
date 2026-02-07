@@ -151,7 +151,7 @@
 
   자동 감지 패턴 (간편 사용):
   "OPENAI_API_KEY 환경 변수가 필요합니다"
-  "Need API key for FIGMA_ACCESS_TOKEN"
+  "Need API key for GITHUB_TOKEN"
 
   D2. 사용자 질문 요청/응답
 
@@ -395,27 +395,20 @@
   - 진행 상황 복원 (Phase, Step)
 
   ---
-  J. 가이드 시스템 (36개 문서)
+  J. 가이드 시스템 (24개 문서)
 
   J1. Phase별 가이드
 
   guide/
-  ├── planning/       (9개) - Phase 1 단계별
-  작성 가이드
-  ├── design/         (5개) - Phase 2 단계별
-  작성 가이드
-  ├── development/    (6개) - Phase 3 단계별
-  구현 가이드
-  ├── review/         (1개) - 리뷰 프로세스
-  가이드
-  ├── verification/   (3개) - Phase별 검증
-  기준
-  ├── figma/          (4개) - Figma 통합
-  가이드
-  ├── integrations/   (4개) - 외부 서비스
-  통합
-  └── 공통 가이드     (4개) - QUICK_START,
-  AUTONOMOUS_EXECUTION 등
+  ├── planning/       (9개) - Phase 1 단계별 작성 가이드
+  ├── design/         (5개) - Phase 2 단계별 작성 가이드
+  ├── development/    (6개) - Phase 3 단계별 구현 가이드
+  ├── review/         (1개) - 리뷰 프로세스 가이드
+  └── verification/   (3개) - Phase별 검증 기준
+
+  향후 추가 예정:
+  - integrations/   - 외부 서비스 통합
+  - 공통 가이드     - QUICK_START, AUTONOMOUS_EXECUTION 등
 
   J2. 가이드 활용
 
@@ -426,29 +419,14 @@
   ---
   K. 외부 서비스 통합
 
-  K1. Figma 통합
-
-  기능:
-  - Figma 파일 연결 (Access Token 기반)
-  - 기획 단계: 컨셉 아트, 무드보드 생성
-  - 설계 단계: 와이어프레임, 프로토타입 생성
-  - Dev Mode: 개발자 핸드오프
-
-  API:
-  POST /api/tasks/{taskId}/figma
-    → Figma 파일 연결
-
-  GET /api/tasks/{taskId}/figma/files
-    → 연결된 Figma 파일 목록
-
-  K2. Supabase 통합
+  K1. Supabase 통합
 
   기능:
   - 프로젝트 연결
   - 데이터베이스 스키마 자동 생성
   - 인증 설정
 
-  K3. GitHub 통합
+  K2. GitHub 통합
 
   기능:
   - 저장소 생성
@@ -925,7 +903,7 @@
   custom)
   15. ✅ 스케줄 작업
   16. ✅ 워크플로우
-  17. ✅ 외부 통합 (Figma, GitHub, Supabase)
+  17. ✅ 외부 통합 (GitHub, Supabase)
   18. ✅ 사용자 질문 시스템
   19. ✅ 작업 대기열
 

@@ -122,6 +122,16 @@ Documents created:
 ...
 ```
 
+**Error Reporting**
+```
+[ERROR]
+type: recoverable | fatal
+message: Rate limit exceeded
+details: API rate limit hit, will retry after cooldown
+recovery: pause_and_retry | checkpoint_and_fail
+[/ERROR]
+```
+
 ### 5. Verification System
 
 - **Automatic verification** after each phase

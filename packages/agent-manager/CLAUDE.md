@@ -109,10 +109,13 @@ docs/
    → docs/lifecycle/execution.md
 
 3. 산출물 수집
-   → 생성된 문서/코드 파일 확인
+   → 작업 디렉토리 (/projects/{task-id}/) 스캔
+   → Phase별 대상 디렉토리 (docs/planning, docs/design, src 등)
+   → 생성된 파일 목록 및 메타데이터 수집
 
 4. 리뷰 생성 요청
-   → 웹 서버에 리뷰 생성 요청
+   → 수집된 산출물 정보를 웹 서버에 전달
+   → 웹 서버가 리뷰 생성
 
 5. 승인 대기
    → waiting_review 상태

@@ -72,12 +72,6 @@
 │  ☐ 08_tech.md          기술 검토                            │
 │  ☐ 09_roadmap.md       로드맵                               │
 │                                                             │
-│  Figma 확인 (있는 경우):                                    │
-│  ─────────────────────                                      │
-│  ☐ 01_Planning > Personas                                   │
-│  ☐ 01_Planning > User Journey                               │
-│  ☐ 01_Planning > Information Architecture                   │
-│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -180,13 +174,6 @@
 │  ☐ 04_api.md           API 설계                             │
 │  ☐ 05_architecture.md  아키텍처                             │
 │                                                             │
-│  Figma 확인 (필수):                                         │
-│  ─────────────────                                          │
-│  ☐ 02_Design > Wireframes                                   │
-│  ☐ 02_Design > UI Design                                    │
-│  ☐ 02_Design > Prototypes                                   │
-│  ☐ 03_Components > Design System                            │
-│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -195,12 +182,11 @@
 ```markdown
 ## 설계 검토 체크리스트
 
-### 화면 설계 (01_screen.md + Figma)
+### 화면 설계 (01_screen.md)
 - [ ] 모든 화면이 정의되었는가?
 - [ ] 화면 흐름이 논리적인가?
 - [ ] 상태별 UI가 정의되었는가? (Default, Loading, Empty, Error)
 - [ ] 와이어프레임/UI가 기능 요구사항을 충족하는가?
-- [ ] 프로토타입 인터랙션이 자연스러운가?
 
 ### 데이터 모델 (02_data_model.md)
 - [ ] 엔티티 정의가 명확한가?
@@ -254,16 +240,8 @@
 | 시장 분석 | [02_market.md](result/planning/02_market.md) | ✅ 완료 |
 | ... | ... | ... |
 
-#### Figma
-| 항목 | 링크 |
-|-----|------|
-| 기획 시각화 | [01_Planning](https://figma.com/file/xxx) |
-| UI 디자인 | [02_Design](https://figma.com/file/xxx) |
-| 프로토타입 | [Prototype](https://figma.com/proto/xxx) |
-
 ### 검토 방법
 1. 위 문서 링크를 순서대로 검토
-2. Figma 링크에서 시각 자료 확인
 3. 피드백은 아래 양식으로 작성
 
 ### 피드백 양식
@@ -322,7 +300,7 @@ YYYY-MM-DD까지 검토 부탁드립니다.
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  1. 피드백 수집                                             │
-│     • 문서/Figma에 대한 코멘트                              │
+│     • 문서에 대한 코멘트                                    │
 │     • 회의록/슬랙 메시지                                    │
 │                                                             │
 │  2. 피드백 분류                                             │
@@ -389,8 +367,6 @@ status.md에 승인 결과 기록:
 ### 검토 요청 전
 ```
 ☐ 모든 단계 문서 작성 완료
-☐ Figma 시각화 작업 완료 (해당 시)
-☐ 문서 내 Figma 링크 추가
 ☐ status.md 업데이트
 ☐ 검토 요청 메시지 작성
 ```
@@ -398,7 +374,6 @@ status.md에 승인 결과 기록:
 ### 검토 중
 ```
 ☐ 검토자 질문에 응답
-☐ Figma 코멘트 확인
 ☐ 피드백 수집 및 분류
 ```
 
@@ -416,4 +391,3 @@ status.md에 승인 결과 기록:
 
 - [CLAUDE.md](../../CLAUDE.md) - 전체 워크플로우
 - [status.md](../../status.md) - 현재 상태 추적
-- [guide/figma/](../figma/) - Figma 가이드

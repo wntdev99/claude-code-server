@@ -140,7 +140,17 @@ Documents created:
 ...
 ```
 
-The Agent Manager parses these protocols in real-time and coordinates appropriate responses (pausing agents, requesting user input, injecting dependencies).
+**Error Reporting:**
+```
+[ERROR]
+type: recoverable | fatal
+message: Rate limit exceeded
+details: API rate limit hit, will retry after cooldown
+recovery: pause_and_retry | checkpoint_and_fail
+[/ERROR]
+```
+
+The Agent Manager parses these protocols in real-time and coordinates appropriate responses (pausing agents, requesting user input, injecting dependencies, handling errors).
 
 ### 4. Review Gate System
 
