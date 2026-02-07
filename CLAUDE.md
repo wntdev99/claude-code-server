@@ -95,14 +95,20 @@ Four task types with distinct workflows:
 
 ### 2. Phase-Based Execution
 
-Sub-agents execute tasks in phases. Each phase:
-1. Sub-agent reads guide documents from `/guide/[phase]/`
-2. Generates deliverables (markdown docs in Phase 1-2, code in Phase 3)
-3. Signals completion with `=== PHASE N COMPLETE ===`
-4. Agent Manager pauses sub-agent
-5. System runs verification (separate agent checks deliverables)
-6. Creates review for user approval
-7. On approval, proceeds to next phase
+Sub-agents execute tasks in phases. Each phase follows this review process:
+
+1. **Agent signals completion**: `=== PHASE N COMPLETE ===`
+2. **Platform pauses agent** (Agent Manager sends SIGTSTP)
+3. **Verification agent runs** (separate Claude Code instance checks deliverables)
+4. **Verification report generated** (checks completeness, quality, no placeholders)
+5. **If verification fails**: Auto-rework (max 3 attempts with feedback)
+6. **If verification passes**: Create review for user via web UI
+7. **User reviews** deliverables (documents, code files)
+8. **User approves or requests changes** (with feedback comments)
+9. **If approved**: Agent proceeds to next phase
+10. **If changes requested**: Agent addresses feedback and re-submits for re-verification
+
+See `/docs/WORKFLOWS.md` for detailed verification criteria per phase.
 
 ### 3. Platform-Agent Communication Protocols
 

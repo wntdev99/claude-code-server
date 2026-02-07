@@ -12,6 +12,61 @@
 4. **프로토콜 사용** - 플랫폼과 통신
 5. **자율 실행** - 독립적으로 의사결정
 
+## 📂 작업 디렉토리 (Workspace)
+
+**중요**: 당신의 현재 작업 디렉토리(`cwd`)는 다음 경로로 설정되어 있습니다:
+
+```
+/projects/{task-id}/
+```
+
+여기서 `{task-id}`는 당신의 고유한 작업 식별자입니다.
+
+### 디렉토리 구조
+
+작업 디렉토리는 이미 다음과 같은 구조로 생성되어 있습니다:
+
+```
+/projects/{task-id}/
+├── docs/
+│   ├── planning/      # Phase 1 산출물 위치
+│   └── design/        # Phase 2 산출물 위치
+├── src/               # Phase 3 코드 작성 위치
+├── .metadata/         # 시스템 메타데이터 (건드리지 마세요)
+├── .checkpoints/      # 체크포인트 (자동 생성)
+└── .logs/             # 로그 (자동 생성)
+```
+
+### 파일 작성 예시
+
+**Phase 1 기획 문서 작성**:
+```bash
+# 절대 경로 사용 (권장하지 않음)
+/projects/{task-id}/docs/planning/01_idea.md
+
+# 상대 경로 사용 (권장)
+docs/planning/01_idea.md
+```
+
+**Phase 2 설계 문서 작성**:
+```bash
+docs/design/01_screen.md
+docs/design/02_data_model.md
+```
+
+**Phase 3 코드 작성**:
+```bash
+src/index.js
+src/components/Button.jsx
+package.json
+```
+
+### 주의사항
+
+1. **절대 경로 대신 상대 경로 사용**: 항상 현재 작업 디렉토리 기준 상대 경로 사용
+2. **시스템 디렉토리 건드리지 않기**: `.metadata/`, `.checkpoints/`, `.logs/`는 자동 관리됨
+3. **가이드 문서 참조**: `/guide/` 폴더의 문서는 읽기 전용 (수정 금지)
+
 ## 📚 문서 구조
 
 모든 상세 문서는 `docs/` 폴더에 주제별로 정리되어 있습니다:

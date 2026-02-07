@@ -82,11 +82,20 @@ This platform follows a **3-tier architecture**:
 
 ### 3. Review Gate System
 
-After each phase completion:
-1. **Auto-collect deliverables** (documents, code)
-2. **User reviews** via web UI
-3. **Approval** → Proceed to next phase
-4. **Change requests** → Rework and re-review
+After each phase completion, a 10-step review process ensures quality:
+
+1. **Agent signals completion**: `=== PHASE N COMPLETE ===`
+2. **Platform pauses agent** (Agent Manager sends SIGTSTP)
+3. **Verification agent runs** (separate Claude Code instance checks deliverables)
+4. **Verification report generated** (checks completeness, quality, no placeholders)
+5. **If verification fails**: Auto-rework (max 3 attempts with feedback)
+6. **If verification passes**: Create review for user via web UI
+7. **User reviews** deliverables (documents, code files)
+8. **User approves or requests changes** (with feedback comments)
+9. **If approved**: Agent proceeds to next phase
+10. **If changes requested**: Agent addresses feedback and re-submits for re-verification
+
+See `/docs/WORKFLOWS.md` for detailed verification criteria.
 
 ### 4. Platform-Agent Communication Protocols
 
