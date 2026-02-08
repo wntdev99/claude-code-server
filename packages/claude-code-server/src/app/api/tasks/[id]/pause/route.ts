@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { AgentManager } from '@claude-code-server/agent-manager';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -12,12 +11,10 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     const agentManager = AgentManager.getInstance();
     agentManager.pause(id);
 
-    await prisma.task.update({
-      where: { id },
-      data: { status: 'paused' },
-    });
+    // Task status stays 'in_progress' - pause is an agent-level state
+    // The agent state (AgentState) transitions to 'paused' inside AgentManager
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: { agentState: 'paused' } });
   } catch (error) {
     return NextResponse.json(
       {

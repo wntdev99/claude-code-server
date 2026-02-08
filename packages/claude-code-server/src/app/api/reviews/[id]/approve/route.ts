@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { AgentManager } from '@claude-code-server/agent-manager';
+import { AgentManager, getTotalPhases } from '@claude-code-server/agent-manager';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -41,7 +41,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       data: {
         status: 'in_progress',
         currentPhase: nextPhase,
-        progress: Math.round((review.phase / 4) * 100),
+        progress: Math.round((review.phase / getTotalPhases(review.task.type)) * 100),
       },
     });
 

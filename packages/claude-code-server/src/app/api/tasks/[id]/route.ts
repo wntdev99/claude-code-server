@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { sanitizeInput } from '@claude-code-server/shared';
 import { z } from 'zod';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -42,9 +43,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const body = await req.json();
     const validated = UpdateTaskSchema.parse(body);
 
+    const sanitized: Record<string, string> = {};
+    if (validated.title) sanitized.title = sanitizeInput(validated.title);
+    if (validated.description) sanitized.description = sanitizeInput(validated.description);
+    if (validated.status) sanitized.status = validated.status;
+
     const task = await prisma.task.update({
       where: { id },
-      data: validated,
+      data: sanitized,
     });
 
     return NextResponse.json({ success: true, data: task });

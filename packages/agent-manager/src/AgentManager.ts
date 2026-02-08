@@ -187,6 +187,10 @@ export class AgentManager extends EventEmitter {
    */
   sendAnswer(taskId: string, answer: string): void {
     const info = this.getAgent(taskId);
+    if (info.stateMachine.state === 'waiting_question') {
+      info.stateMachine.transition('answer');
+      info.process.resume();
+    }
     info.process.sendInput(answer);
   }
 
@@ -289,8 +293,8 @@ export class AgentManager extends EventEmitter {
         }
         break;
       case 'USER_QUESTION':
-        if (info.stateMachine.canTransition('pause')) {
-          info.stateMachine.transition('pause');
+        if (info.stateMachine.canTransition('ask_question')) {
+          info.stateMachine.transition('ask_question');
           info.process.pause();
         }
         break;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AgentManager } from '@claude-code-server/agent-manager';
+import { sanitizeInput } from '@claude-code-server/shared';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -34,6 +35,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
   } catch {
     // No body is OK, but feedback is recommended
   }
+
+  feedback = sanitizeInput(feedback);
 
   if (!feedback.trim()) {
     return NextResponse.json(
