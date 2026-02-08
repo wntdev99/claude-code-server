@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { ENCRYPTED_SETTINGS } from '@claude-code-server/shared';
+import { encryptSecret, decryptSecret } from '@claude-code-server/shared';
 
 // Sensitive keys that should be masked in GET responses
 const SENSITIVE_KEYS = ['github_token', 'vercel_token', 'encryption_key'];
@@ -11,14 +13,32 @@ function maskValue(key: string, value: string): string {
   return value;
 }
 
+function shouldEncrypt(key: string): boolean {
+  return ENCRYPTED_SETTINGS.includes(key);
+}
+
 // GET /api/settings
 export async function GET() {
   const settings = await prisma.settings.findMany();
-  const masked = settings.map((s: { key: string; value: string; updatedAt: Date }) => ({
-    key: s.key,
-    value: maskValue(s.key, s.value),
-    updatedAt: s.updatedAt,
-  }));
+  const masked = settings.map((s: { key: string; value: string; updatedAt: Date }) => {
+    let displayValue = s.value;
+
+    // Decrypt for masking display (so we mask the actual value, not the encrypted blob)
+    if (shouldEncrypt(s.key)) {
+      try {
+        displayValue = decryptSecret(s.value);
+      } catch {
+        // If decryption fails, show raw (might be unencrypted legacy data)
+        displayValue = s.value;
+      }
+    }
+
+    return {
+      key: s.key,
+      value: maskValue(s.key, displayValue),
+      updatedAt: s.updatedAt,
+    };
+  });
 
   return NextResponse.json({ success: true, data: masked });
 }
@@ -38,10 +58,14 @@ export async function PATCH(req: NextRequest) {
     const results = [];
     for (const [key, value] of Object.entries(body)) {
       if (typeof value !== 'string') continue;
+
+      // Encrypt sensitive values before storage
+      const storedValue = shouldEncrypt(key) ? encryptSecret(value) : value;
+
       const setting = await prisma.settings.upsert({
         where: { key },
-        update: { value },
-        create: { key, value },
+        update: { value: storedValue },
+        create: { key, value: storedValue },
       });
       results.push({ key: setting.key, updatedAt: setting.updatedAt });
     }

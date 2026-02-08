@@ -292,3 +292,32 @@ export interface RateLimitInfo {
   detected: boolean;
   resetAt: Date | null;
 }
+
+// ============================================================
+// Token Usage Types (docs/FEATURES.md - Token Management)
+// ============================================================
+
+export interface TokenUsage {
+  taskId: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedCost: number; // USD
+}
+
+// Known settings keys with metadata for validation
+export const SettingsKeys = {
+  CLAUDE_MODEL: 'claude_model',
+  CLAUDE_MAX_TOKENS: 'claude_max_tokens',
+  GITHUB_TOKEN: 'github_token',
+  VERCEL_TOKEN: 'vercel_token',
+  OUTPUT_DIRECTORY: 'output_directory',
+  ENCRYPTION_KEY: 'encryption_key',
+} as const;
+
+// Settings that should be encrypted when stored
+export const ENCRYPTED_SETTINGS: string[] = [
+  SettingsKeys.GITHUB_TOKEN,
+  SettingsKeys.VERCEL_TOKEN,
+  SettingsKeys.ENCRYPTION_KEY,
+];

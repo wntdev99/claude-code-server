@@ -17,3 +17,7 @@ export {
   isLastPhase,
   hasReviewGate,
 } from './WorkflowDefinitions.js';
+export { CheckpointManager } from './CheckpointManager.js';
+export type { CheckpointData } from './CheckpointManager.js';
+export { RateLimitDetector } from './RateLimitDetector.js';
+export { TokenTracker } from './TokenTracker.js';
