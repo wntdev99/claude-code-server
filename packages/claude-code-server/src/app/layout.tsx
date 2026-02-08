@@ -19,9 +19,12 @@ export default function RootLayout({
             <a href="/" className="text-xl font-bold">
               Claude Code Server
             </a>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4">
               <a href="/" className="text-gray-600 hover:text-gray-900">
                 Tasks
+              </a>
+              <a href="/settings" className="text-gray-600 hover:text-gray-900">
+                Settings
               </a>
               <a
                 href="/tasks/new"

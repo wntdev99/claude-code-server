@@ -2,6 +2,9 @@ import { EventEmitter } from 'node:events';
 import { AgentProcess } from './AgentProcess.js';
 import { ProtocolParser } from './ProtocolParser.js';
 import { StateMachine } from './StateMachine.js';
+import { CheckpointManager } from './CheckpointManager.js';
+import { RateLimitDetector } from './RateLimitDetector.js';
+import { TokenTracker } from './TokenTracker.js';
 import type { Protocol, AgentState } from '@claude-code-server/shared';
 
 export interface AgentInfo {
@@ -10,10 +13,13 @@ export interface AgentInfo {
   parser: ProtocolParser;
   stateMachine: StateMachine;
   startedAt: Date;
+  workspace?: string;
 }
 
 /**
  * AgentManager - Singleton orchestrator for managing Claude Code agent processes.
+ *
+ * Integrates: CheckpointManager, RateLimitDetector, TokenTracker
  *
  * Events emitted:
  *   'log:{taskId}'           (message: string)       - Agent log line
@@ -24,6 +30,9 @@ export interface AgentInfo {
 export class AgentManager extends EventEmitter {
   private static instance: AgentManager | null = null;
   private agents = new Map<string, AgentInfo>();
+  readonly checkpointManager = new CheckpointManager();
+  readonly rateLimitDetector = new RateLimitDetector();
+  readonly tokenTracker = new TokenTracker();
 
   static getInstance(): AgentManager {
     if (!AgentManager.instance) {
@@ -57,6 +66,7 @@ export class AgentManager extends EventEmitter {
       parser,
       stateMachine,
       startedAt: new Date(),
+      workspace: options.workspace,
     };
 
     this.agents.set(taskId, info);
@@ -64,6 +74,9 @@ export class AgentManager extends EventEmitter {
     // Wire up event handlers
     agentProcess.on('stdout', (data: string) => {
       this.emit(`log:${taskId}`, data);
+
+      // Track token usage
+      this.tokenTracker.processOutput(taskId, data);
 
       // Parse for protocols
       const protocols = parser.feed(data);
@@ -74,9 +87,42 @@ export class AgentManager extends EventEmitter {
 
     agentProcess.on('stderr', (data: string) => {
       this.emit(`log:${taskId}`, `[stderr] ${data}`);
+
+      // Check for rate limiting
+      const rateLimitInfo = this.rateLimitDetector.detect(data);
+      if (rateLimitInfo && stateMachine.state === 'running') {
+        // Create checkpoint before pausing
+        this.checkpointManager.create(
+          taskId,
+          'rate_limit',
+          { lastOutput: data },
+          options.workspace
+        ).catch(() => {});
+
+        this.rateLimitDetector.handle(
+          taskId,
+          rateLimitInfo,
+          () => {
+            if (stateMachine.canTransition('pause')) {
+              stateMachine.transition('pause');
+              agentProcess.pause();
+            }
+          },
+          () => {
+            if (stateMachine.canTransition('resume')) {
+              stateMachine.transition('resume');
+              agentProcess.resume();
+            }
+          }
+        );
+      }
     });
 
     agentProcess.on('exit', (code: number | null) => {
+      // Stop auto-checkpointing
+      this.checkpointManager.stopAutoCheckpoint(taskId);
+      this.rateLimitDetector.cancelResume(taskId);
+
       if (stateMachine.state === 'running') {
         if (code === 0) {
           stateMachine.transition('complete');
@@ -98,6 +144,17 @@ export class AgentManager extends EventEmitter {
       this.emit(`state:${taskId}`, to);
       this.emit(`log:${taskId}`, `[state] ${from} -> ${to} (${action})`);
     });
+
+    // Start auto-checkpointing
+    this.checkpointManager.startAutoCheckpoint(
+      taskId,
+      () => ({
+        currentPhase: null,
+        progress: 0,
+        lastOutput: '',
+      }),
+      options.workspace
+    );
 
     // Transition to running and spawn
     stateMachine.transition('execute');
@@ -162,6 +219,18 @@ export class AgentManager extends EventEmitter {
   async terminate(taskId: string): Promise<void> {
     const info = this.agents.get(taskId);
     if (!info) return;
+
+    // Create final checkpoint before termination
+    await this.checkpointManager.create(
+      taskId,
+      'manual',
+      {},
+      info.workspace
+    ).catch(() => {});
+
+    this.checkpointManager.stopAutoCheckpoint(taskId);
+    this.rateLimitDetector.cancelResume(taskId);
+
     await info.process.terminate();
     this.agents.delete(taskId);
   }
@@ -181,11 +250,13 @@ export class AgentManager extends EventEmitter {
   }
 
   /**
-   * Gracefully shut down all agents.
+   * Gracefully shut down all agents with checkpoints.
    */
   async shutdownAll(): Promise<void> {
     const ids = this.getRunningTaskIds();
     await Promise.all(ids.map((id) => this.terminate(id)));
+    this.checkpointManager.stopAll();
+    this.rateLimitDetector.cancelAll();
   }
 
   private getAgent(taskId: string): AgentInfo {
@@ -205,12 +276,19 @@ export class AgentManager extends EventEmitter {
     switch (protocol.type) {
       case 'PHASE_COMPLETE':
         if (info.stateMachine.canTransition('phase_complete')) {
+          // Create checkpoint on phase complete
+          this.checkpointManager.create(
+            taskId,
+            'phase_complete',
+            { lastOutput: '' },
+            info.workspace
+          ).catch(() => {});
+
           info.stateMachine.transition('phase_complete');
           info.process.pause();
         }
         break;
       case 'USER_QUESTION':
-        // Agent is paused waiting for answer - handled externally
         if (info.stateMachine.canTransition('pause')) {
           info.stateMachine.transition('pause');
           info.process.pause();
@@ -218,6 +296,14 @@ export class AgentManager extends EventEmitter {
         break;
       case 'ERROR':
         if (protocol.severity === 'fatal') {
+          // Create checkpoint on fatal error
+          this.checkpointManager.create(
+            taskId,
+            'error',
+            { lastOutput: protocol.message },
+            info.workspace
+          ).catch(() => {});
+
           if (info.stateMachine.canTransition('fail')) {
             info.stateMachine.transition('fail');
           }
