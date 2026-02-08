@@ -144,6 +144,49 @@ recovery: checkpoint_and_fail
     });
   });
 
+  describe('CUSTOM_TASK_COMPLETE', () => {
+    it('parses basic custom task complete signal', () => {
+      const input = `=== CUSTOM TASK COMPLETE ===`;
+
+      const result = parser.parse(input);
+      expect(result).not.toBeNull();
+      expect(result!.type).toBe('CUSTOM_TASK_COMPLETE');
+    });
+
+    it('parses custom task complete with details', () => {
+      const input = `=== CUSTOM TASK COMPLETE ===
+Task: JWT authentication explanation
+Summary: Explained JWT structure, signing, and verification process`;
+
+      const result = parser.parse(input);
+      expect(result).not.toBeNull();
+      expect(result!.type).toBe('CUSTOM_TASK_COMPLETE');
+      if (result!.type === 'CUSTOM_TASK_COMPLETE') {
+        expect(result!.task).toBe('JWT authentication explanation');
+        expect(result!.summary).toBe(
+          'Explained JWT structure, signing, and verification process'
+        );
+      }
+    });
+  });
+
+  describe('ERROR with notify_user recovery', () => {
+    it('parses error with notify_user recovery', () => {
+      const input = `[ERROR]
+type: recoverable
+message: Invalid guide document
+details: guide/planning/01_idea.md missing sections
+recovery: notify_user
+[/ERROR]`;
+
+      const result = parser.parse(input);
+      expect(result).not.toBeNull();
+      if (result!.type === 'ERROR') {
+        expect(result!.recovery).toBe('notify_user');
+      }
+    });
+  });
+
   describe('streaming (feed)', () => {
     it('handles multi-chunk protocol messages', () => {
       const protocols1 = parser.feed('[USER_QUESTION]\ncategory: business\n');

@@ -278,11 +278,26 @@
   - SIGTSTP (일시중지 신호) 전송
   - Checkpoint 생성
 
+#### `waiting_review` → `paused`
+- **트리거**: 사용자가 리뷰 중 "일시중지" 클릭
+- **조건**: Agent가 waiting_review 상태
+- **액션**:
+  - SIGTSTP (일시중지 신호) 전송
+  - Checkpoint 생성
+
 #### `paused` → `running`
 - **트리거**: 사용자가 "재개" 클릭
 - **조건**: Agent가 paused 상태
 - **액션**:
   - SIGCONT (재개 신호) 전송
+
+#### `paused` → `failed`
+- **트리거**: 사용자가 일시중지 상태에서 "취소" 클릭
+- **조건**: Agent가 paused 상태
+- **액션**:
+  - SIGTERM (종료 신호) 전송
+  - Checkpoint 생성
+  - Agent 프로세스 종료
 
 #### `running` → `completed`
 - **트리거**: 모든 Phase 완료 및 승인

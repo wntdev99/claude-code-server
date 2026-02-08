@@ -122,6 +122,7 @@ export class CheckpointManager extends EventEmitter {
 
   /**
    * Save checkpoint data to filesystem for offline recovery.
+   * Also cleans up old checkpoints (keeps max 10).
    */
   private saveToFilesystem(checkpoint: CheckpointData, workspace: string): void {
     try {
@@ -133,8 +134,33 @@ export class CheckpointManager extends EventEmitter {
       const filename = `checkpoint_${checkpoint.reason}_${checkpoint.createdAt.getTime()}.json`;
       const filePath = path.join(checkpointDir, filename);
       fs.writeFileSync(filePath, JSON.stringify(checkpoint, null, 2));
+
+      // Cleanup: keep only the latest MAX_CHECKPOINTS files
+      this.cleanupOldCheckpoints(checkpointDir);
     } catch {
       // Filesystem save is best-effort
+    }
+  }
+
+  /**
+   * Remove old checkpoint files, keeping only the latest MAX_CHECKPOINTS.
+   */
+  private cleanupOldCheckpoints(checkpointDir: string): void {
+    const MAX_CHECKPOINTS = 10;
+    try {
+      const files = fs.readdirSync(checkpointDir)
+        .filter((f) => f.startsWith('checkpoint_') && f.endsWith('.json'))
+        .sort()
+        .reverse(); // Latest first (timestamps in name)
+
+      if (files.length <= MAX_CHECKPOINTS) return;
+
+      const toDelete = files.slice(MAX_CHECKPOINTS);
+      for (const file of toDelete) {
+        fs.unlinkSync(path.join(checkpointDir, file));
+      }
+    } catch {
+      // Cleanup is best-effort
     }
   }
 

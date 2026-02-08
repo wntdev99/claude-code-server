@@ -9,6 +9,8 @@ const RATE_LIMIT_PATTERNS = [
   /too many requests/i,
   /rate limit exceeded/i,
   /overloaded_error/i,
+  /quota[_\s]exceeded/i,
+  /capacity[_\s]exceeded/i,
 ];
 
 // Pattern to extract reset time (Unix timestamp or seconds)

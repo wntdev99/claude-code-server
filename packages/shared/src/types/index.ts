@@ -134,6 +134,7 @@ export interface Settings {
 export const ProtocolType = {
   USER_QUESTION: 'USER_QUESTION',
   PHASE_COMPLETE: 'PHASE_COMPLETE',
+  CUSTOM_TASK_COMPLETE: 'CUSTOM_TASK_COMPLETE',
   ERROR: 'ERROR',
   LOG: 'LOG',
 } as const;
@@ -164,9 +165,16 @@ export type ErrorSeverity = (typeof ErrorSeverity)[keyof typeof ErrorSeverity];
 export const ErrorRecovery = {
   PAUSE_AND_RETRY: 'pause_and_retry',
   CHECKPOINT_AND_FAIL: 'checkpoint_and_fail',
+  NOTIFY_USER: 'notify_user',
 } as const;
 export type ErrorRecovery =
   (typeof ErrorRecovery)[keyof typeof ErrorRecovery];
+
+export interface CustomTaskCompleteProtocol {
+  type: typeof ProtocolType.CUSTOM_TASK_COMPLETE;
+  task?: string;
+  summary?: string;
+}
 
 export interface ErrorProtocol {
   type: typeof ProtocolType.ERROR;
@@ -179,6 +187,7 @@ export interface ErrorProtocol {
 export type Protocol =
   | UserQuestionProtocol
   | PhaseCompleteProtocol
+  | CustomTaskCompleteProtocol
   | ErrorProtocol;
 
 // ============================================================

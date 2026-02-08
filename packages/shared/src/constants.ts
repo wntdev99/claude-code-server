@@ -1,12 +1,5 @@
-// Application constants
-
-export const APP_NAME = 'Claude Code Server';
-export const APP_VERSION = '0.1.0';
-
 // Default configuration
-export const DEFAULT_PORT = 3000;
 export const DEFAULT_MODEL = 'claude-sonnet-4-5';
-export const DEFAULT_MAX_TOKENS = 8000;
 
 // Checkpoint configuration
 export const CHECKPOINT_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes

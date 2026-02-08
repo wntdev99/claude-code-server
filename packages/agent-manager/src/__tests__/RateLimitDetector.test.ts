@@ -40,6 +40,18 @@ describe('RateLimitDetector', () => {
       expect(result).toBeTruthy();
     });
 
+    it('detects quota_exceeded', () => {
+      const result = detector.detect('Error: quota_exceeded - monthly limit reached');
+      expect(result).toBeTruthy();
+      expect(result!.detected).toBe(true);
+    });
+
+    it('detects capacity exceeded', () => {
+      const result = detector.detect('capacity exceeded, please try again later');
+      expect(result).toBeTruthy();
+      expect(result!.detected).toBe(true);
+    });
+
     it('extracts reset timestamp from output', () => {
       const futureTimestamp = Math.floor(Date.now() / 1000) + 120;
       const result = detector.detect(`rate_limit_error, reset at ${futureTimestamp}`);

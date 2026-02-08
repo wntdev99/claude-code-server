@@ -298,6 +298,11 @@ export class AgentManager extends EventEmitter {
           info.process.pause();
         }
         break;
+      case 'CUSTOM_TASK_COMPLETE':
+        if (info.stateMachine.canTransition('complete')) {
+          info.stateMachine.transition('complete');
+        }
+        break;
       case 'ERROR':
         if (protocol.severity === 'fatal') {
           // Create checkpoint on fatal error

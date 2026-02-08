@@ -116,10 +116,10 @@ Agent 일시중지 (SIGTSTP)
 /projects/{task-id}/.checkpoints/
 ├── checkpoint_2024-02-15T10-30-00.json   # 자동 (10분마다)
 ├── checkpoint_2024-02-15T10-40-00.json   # 자동 (10분마다)
-├── checkpoint_phase1_complete.json       # Phase 완료
-├── checkpoint_rate_limit.json            # Rate Limit
-├── checkpoint_user_pause.json            # 사용자 일시중지
-└── latest.json -> checkpoint_2024-02-15T10-40-00.json  # 심볼릭 링크
+├── checkpoint_phase_complete_1708000800000.json  # Phase 완료
+├── checkpoint_rate_limit_1708000200000.json      # Rate Limit
+├── checkpoint_manual_1708000500000.json          # 사용자 일시중지 (manual)
+└── (최신 10개 파일만 보존, 이전 파일은 자동 삭제)
 ```
 
 ### Checkpoint 데이터 구조
@@ -131,7 +131,7 @@ interface Checkpoint {
   taskId: string;                       // task_xyz789
   createdAt: string;                    // ISO 8601 timestamp
   createdBy: 'auto' | 'user' | 'system';
-  reason: string;                       // 'interval' | 'rate_limit' | 'error' | 'phase_complete' | 'user_pause'
+  reason: string;                       // 'interval' | 'rate_limit' | 'error' | 'phase_complete' | 'manual'
 
   // Task 상태
   task: {
@@ -294,7 +294,7 @@ async function createCheckpoint(taskId: string, reason: string): Promise<Checkpo
     id: generateCheckpointId(),
     taskId,
     createdAt: new Date().toISOString(),
-    createdBy: reason === 'user_pause' ? 'user' : 'system',
+    createdBy: reason === 'manual' ? 'user' : 'system',
     reason,
     task: extractTaskState(task),
     agent: extractAgentState(agent),

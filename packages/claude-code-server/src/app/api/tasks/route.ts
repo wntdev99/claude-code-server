@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import { getWorkspacePath, sanitizeInput } from '@claude-code-server/shared';
+import { sanitizeInput } from '@claude-code-server/shared';
 
 const CreateTaskSchema = z.object({
   title: z.string().min(1, 'Title is required'),

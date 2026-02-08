@@ -2,6 +2,7 @@ import type {
   Protocol,
   UserQuestionProtocol,
   PhaseCompleteProtocol,
+  CustomTaskCompleteProtocol,
   ErrorProtocol,
   QuestionCategory,
   ErrorSeverity,
@@ -82,19 +83,29 @@ export class ProtocolParser {
     }
     this.buffer = this.buffer.replace(phaseRegex, '');
 
+    // Try parsing CUSTOM_TASK_COMPLETE
+    const customRegex = /=== CUSTOM TASK COMPLETE ===([\s\S]*?)(?=(?:===|\[|$))/g;
+    while ((match = customRegex.exec(this.buffer)) !== null) {
+      const parsed = this.parseCustomTaskComplete(match[1]);
+      if (parsed) protocols.push(parsed);
+    }
+    this.buffer = this.buffer.replace(customRegex, '');
+
     // Prevent unbounded buffer growth.
     // Only truncate if no partial protocol markers remain (to avoid splitting messages).
     if (this.buffer.length > MAX_BUFFER_SIZE) {
       const hasPartialMarker =
         this.buffer.includes('[USER_QUESTION]') ||
         this.buffer.includes('[ERROR]') ||
-        this.buffer.includes('=== PHASE');
+        this.buffer.includes('=== PHASE') ||
+        this.buffer.includes('=== CUSTOM TASK');
       if (hasPartialMarker) {
         // Keep from the earliest marker to avoid splitting
         const markers = [
           this.buffer.indexOf('[USER_QUESTION]'),
           this.buffer.indexOf('[ERROR]'),
           this.buffer.indexOf('=== PHASE'),
+          this.buffer.indexOf('=== CUSTOM TASK'),
         ].filter((i) => i >= 0);
         const earliest = Math.min(...markers);
         this.buffer = this.buffer.slice(earliest);
@@ -188,6 +199,30 @@ export class ProtocolParser {
       phase,
       phaseName,
       documents,
+    };
+  }
+
+  private parseCustomTaskComplete(
+    content: string
+  ): CustomTaskCompleteProtocol {
+    const lines = content.trim().split('\n');
+    let task: string | undefined;
+    let summary: string | undefined;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith('Task:')) {
+        task = trimmed.slice('Task:'.length).trim();
+      } else if (trimmed.startsWith('Summary:')) {
+        summary = trimmed.slice('Summary:'.length).trim();
+      }
+    }
+
+    return {
+      type: 'CUSTOM_TASK_COMPLETE',
+      task,
+      summary,
     };
   }
 
