@@ -37,7 +37,7 @@ const CREATE_APP_PHASES: PhaseDefinition[] = [
   },
   {
     phase: 4,
-    name: 'Verification',
+    name: 'Testing',
     steps: 1,
     deliverableDir: '',
     expectedDeliverables: 0,

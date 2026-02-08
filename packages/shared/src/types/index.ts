@@ -32,6 +32,7 @@ export const AgentState = {
   IDLE: 'idle',
   RUNNING: 'running',
   WAITING_REVIEW: 'waiting_review',
+  WAITING_QUESTION: 'waiting_question',
   PAUSED: 'paused',
   COMPLETED: 'completed',
   FAILED: 'failed',

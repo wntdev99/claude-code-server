@@ -153,7 +153,7 @@
 | `idle` | 유휴 (작업 할당 전) | - |
 | `running` | 실행 중 | - |
 | `paused` | 수동 일시중지 | SIGTSTP |
-| `waiting_dependency` | 의존성 대기 중 | SIGTSTP |
+| `waiting_dependency` | ⚠️ DEPRECATED (Settings 시스템 사용) | SIGTSTP |
 | `waiting_question` | 사용자 질문 응답 대기 | SIGTSTP |
 | `waiting_review` | 리뷰 대기 중 | SIGTSTP |
 | `completed` | 완료 | SIGTERM |
@@ -233,21 +233,9 @@
   - 초기 프롬프트 전달
   - 상태 추적 시작
 
-#### `running` → `waiting_dependency`
-- **트리거**: `[DEPENDENCY_REQUEST]` 파싱
-- **조건**: 의존성이 아직 제공되지 않음
-- **액션**:
-  - SIGTSTP (일시중지 신호) 전송
-  - Checkpoint 생성
-  - Web UI에 의존성 요청 표시
-
-#### `waiting_dependency` → `running`
-- **트리거**: 사용자가 의존성 제공
-- **조건**: 의존성 값이 유효함
-- **액션**:
-  - 환경 변수 주입
-  - SIGCONT (재개 신호) 전송
-  - Agent 재개
+#### `running` → `waiting_dependency` (⚠️ DEPRECATED)
+> **Note**: `waiting_dependency` 상태는 deprecated된 DEPENDENCY_REQUEST 프로토콜에서 사용되었습니다.
+> Settings 시스템(`docs/SETTINGS_SYSTEM.md`)을 사용하세요. 코드에서는 구현되지 않았습니다.
 
 #### `running` → `waiting_question`
 - **트리거**: `[USER_QUESTION]` 파싱

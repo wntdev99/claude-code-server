@@ -62,6 +62,19 @@ describe('StateMachine', () => {
     expect(sm.state).toBe('running');
   });
 
+  it('transitions running -> waiting_question on ask_question', () => {
+    sm.transition('execute');
+    sm.transition('ask_question');
+    expect(sm.state).toBe('waiting_question');
+  });
+
+  it('transitions waiting_question -> running on answer', () => {
+    sm.transition('execute');
+    sm.transition('ask_question');
+    sm.transition('answer');
+    expect(sm.state).toBe('running');
+  });
+
   it('transitions paused -> failed on cancel', () => {
     sm.transition('execute');
     sm.transition('pause');
@@ -77,6 +90,7 @@ describe('StateMachine', () => {
     expect(sm.validActions()).toEqual(['execute']);
     sm.transition('execute');
     expect(sm.validActions()).toContain('phase_complete');
+    expect(sm.validActions()).toContain('ask_question');
     expect(sm.validActions()).toContain('pause');
     expect(sm.validActions()).toContain('complete');
     expect(sm.validActions()).toContain('fail');

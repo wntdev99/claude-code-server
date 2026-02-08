@@ -14,7 +14,7 @@ import { ensureWorkspace } from '@claude-code-server/shared';
 type RouteContext = { params: Promise<{ id: string }> };
 
 // POST /api/tasks/:id/execute - Start task execution
-export async function POST(_req: NextRequest, context: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
 
   const task = await prisma.task.findUnique({ where: { id } });
@@ -128,6 +128,13 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       }
     });
 
+    // Cleanup function to remove all listeners for this task
+    const cleanup = () => {
+      agentManager.removeAllListeners(`log:${id}`);
+      agentManager.removeAllListeners(`protocol:${id}`);
+      agentManager.removeAllListeners(`exit:${id}`);
+    };
+
     // Listen for completion
     agentManager.once(`exit:${id}`, async (code: number | null) => {
       const finalStatus = code === 0 ? 'completed' : 'failed';
@@ -139,9 +146,12 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       } catch {
         // Best effort
       }
-      // Clean up listeners
-      agentManager.removeAllListeners(`log:${id}`);
-      agentManager.removeAllListeners(`protocol:${id}`);
+      cleanup();
+    });
+
+    // Clean up listeners if the HTTP request is aborted
+    req.signal.addEventListener('abort', () => {
+      cleanup();
     });
 
     // Execute based on task type

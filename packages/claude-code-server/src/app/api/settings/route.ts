@@ -3,11 +3,8 @@ import { prisma } from '@/lib/db';
 import { ENCRYPTED_SETTINGS } from '@claude-code-server/shared';
 import { encryptSecret, decryptSecret } from '@claude-code-server/shared';
 
-// Sensitive keys that should be masked in GET responses
-const SENSITIVE_KEYS = ['github_token', 'vercel_token', 'encryption_key'];
-
 function maskValue(key: string, value: string): string {
-  if (SENSITIVE_KEYS.includes(key) && value.length > 4) {
+  if (ENCRYPTED_SETTINGS.includes(key) && value.length > 4) {
     return value.slice(0, 4) + '****';
   }
   return value;

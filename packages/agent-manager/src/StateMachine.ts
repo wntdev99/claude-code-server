@@ -3,15 +3,17 @@ import type { AgentState } from '@claude-code-server/shared';
 /**
  * Agent state transitions (from docs/STATE_MACHINE.md):
  *
- * idle -> running          (execute)
- * running -> waiting_review (phase complete)
- * running -> paused         (rate limit, manual pause)
- * running -> completed      (task done)
- * running -> failed         (fatal error)
- * waiting_review -> running (review approved)
- * waiting_review -> paused  (manual pause)
- * paused -> running         (resume)
- * paused -> failed          (cancel)
+ * idle -> running              (execute)
+ * running -> waiting_review    (phase complete)
+ * running -> waiting_question  (user question)
+ * running -> paused            (rate limit, manual pause)
+ * running -> completed         (task done)
+ * running -> failed            (fatal error)
+ * waiting_review -> running    (review approved)
+ * waiting_review -> paused     (manual pause)
+ * waiting_question -> running  (question answered)
+ * paused -> running            (resume)
+ * paused -> failed             (cancel)
  */
 
 type Transition = {
@@ -23,12 +25,14 @@ type Transition = {
 const VALID_TRANSITIONS: Transition[] = [
   { from: 'idle', to: 'running', action: 'execute' },
   { from: 'running', to: 'waiting_review', action: 'phase_complete' },
+  { from: 'running', to: 'waiting_question', action: 'ask_question' },
   { from: 'running', to: 'paused', action: 'pause' },
   { from: 'running', to: 'completed', action: 'complete' },
   { from: 'running', to: 'failed', action: 'fail' },
   { from: 'waiting_review', to: 'running', action: 'approve' },
   { from: 'waiting_review', to: 'running', action: 'rework' },
   { from: 'waiting_review', to: 'paused', action: 'pause' },
+  { from: 'waiting_question', to: 'running', action: 'answer' },
   { from: 'paused', to: 'running', action: 'resume' },
   { from: 'paused', to: 'failed', action: 'cancel' },
 ];
