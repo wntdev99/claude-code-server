@@ -34,16 +34,31 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       data: { status: 'approved' },
     });
 
-    // Update task: advance phase and set back to in_progress
-    const nextPhase = review.phase + 1;
-    await prisma.task.update({
-      where: { id: review.taskId },
-      data: {
-        status: 'in_progress',
-        currentPhase: nextPhase,
-        progress: Math.round((review.phase / getTotalPhases(review.task.type)) * 100),
-      },
-    });
+    const totalPhases = getTotalPhases(review.task.type);
+    const lastPhase = review.phase >= totalPhases;
+
+    if (lastPhase) {
+      // Final phase approved - mark task as completed
+      await prisma.task.update({
+        where: { id: review.taskId },
+        data: {
+          status: 'completed',
+          currentPhase: review.phase,
+          progress: 100,
+        },
+      });
+    } else {
+      // Advance to next phase
+      const nextPhase = review.phase + 1;
+      await prisma.task.update({
+        where: { id: review.taskId },
+        data: {
+          status: 'in_progress',
+          currentPhase: nextPhase,
+          progress: Math.round((nextPhase / totalPhases) * 100),
+        },
+      });
+    }
 
     // Resume agent via AgentManager
     const agentManager = AgentManager.getInstance();
@@ -54,9 +69,10 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       // The task status update still persists
     }
 
+    const nextPhase = lastPhase ? null : review.phase + 1;
     return NextResponse.json({
       success: true,
-      data: { reviewId: id, status: 'approved', nextPhase },
+      data: { reviewId: id, status: 'approved', nextPhase, completed: lastPhase },
     });
   } catch (error) {
     return NextResponse.json(

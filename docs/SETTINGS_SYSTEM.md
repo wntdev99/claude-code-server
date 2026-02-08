@@ -90,6 +90,10 @@ interface OptionalIntegrations {
   slack_bot_token?: string;
   slack_default_channel?: string;
   // Used only in Phase-C (workflow) tasks
+
+  // Internal
+  encryption_key?: string;
+  // Used for encrypting/decrypting sensitive settings at rest
 }
 ```
 
@@ -370,16 +374,13 @@ const agentProcess = spawn('claude', ['chat'], {
 ```json
 {
   "success": true,
-  "data": {
-    "claude_model": "claude-sonnet-4-5",
-    "claude_max_tokens": 8000,
-    "claude_auto_accept": false,
-    "output_directory": "/projects",
-    "github_token": "ghp_***",       // Masked
-    "vercel_token": "***",           // Masked
-    "supabase_url": "https://...",
-    "supabase_anon_key": "***"       // Masked
-  }
+  "data": [
+    { "key": "claude_model", "value": "claude-sonnet-4-5", "updatedAt": "2025-02-07T..." },
+    { "key": "claude_max_tokens", "value": "8000", "updatedAt": "2025-02-07T..." },
+    { "key": "output_directory", "value": "/projects", "updatedAt": "2025-02-07T..." },
+    { "key": "github_token", "value": "ghp_****", "updatedAt": "2025-02-07T..." },
+    { "key": "vercel_token", "value": "****", "updatedAt": "2025-02-07T..." }
+  ]
 }
 ```
 
@@ -461,8 +462,8 @@ export class SettingsRepository {
 
   private encryptSensitiveFields(settings: Partial<Settings>): any {
     const sensitiveKeys = [
-      'github_token', 'vercel_token', 'supabase_anon_key',
-      'notion_token', 'slack_bot_token'
+      'github_token', 'vercel_token', 'encryption_key',
+      'supabase_anon_key', 'notion_token', 'slack_bot_token'
     ];
 
     return Object.entries(settings).reduce((acc, [key, value]) => {

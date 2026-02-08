@@ -230,9 +230,14 @@ class TokenTracker {
 
 ### Claude Code CLI에서 Token 추출
 
+> **Note**: 아래 `parseTokenUsage` 함수는 구현 참고용 예시입니다. 현재 코드에서는
+> `TokenTracker` 클래스(`packages/agent-manager/src/TokenTracker.ts`)가 token 추적을 담당하며,
+> `RateLimitDetector`는 rate limit 에러 패턴만 감지합니다.
+
 ```typescript
 /**
- * Claude Code CLI stdout에서 Token 사용량 파싱
+ * [참고 예시] Claude Code CLI stdout에서 Token 사용량 파싱
+ * 실제 구현은 TokenTracker.ts를 참조하세요.
  */
 function parseTokenUsage(output: string): { input: number; output: number } | null {
   // Claude Code CLI는 각 API 호출 후 사용량 출력
@@ -250,7 +255,7 @@ function parseTokenUsage(output: string): { input: number; output: number } | nu
 }
 
 /**
- * Agent stdout 모니터링
+ * [참고 예시] Agent stdout 모니터링
  */
 agent.process.stdout.on('data', (data: Buffer) => {
   const output = data.toString();

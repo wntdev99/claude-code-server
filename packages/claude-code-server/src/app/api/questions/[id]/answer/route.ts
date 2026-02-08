@@ -15,6 +15,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
 
   try {
+    const existing = await prisma.question.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: 'Question not found' },
+        { status: 404 }
+      );
+    }
+
     const body = await req.json();
     const { answer } = AnswerSchema.parse(body);
 

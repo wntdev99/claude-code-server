@@ -191,7 +191,11 @@ export class AgentManager extends EventEmitter {
       info.stateMachine.transition('answer');
       info.process.resume();
     }
-    info.process.sendInput(answer);
+    try {
+      info.process.sendInput(answer);
+    } catch {
+      // Process may have exited between state check and sendInput
+    }
   }
 
   /**

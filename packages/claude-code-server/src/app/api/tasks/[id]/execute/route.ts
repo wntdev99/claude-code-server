@@ -8,6 +8,7 @@ import {
   getPhaseDefinition,
   hasReviewGate,
   isLastPhase,
+  getTotalPhases,
 } from '@claude-code-server/agent-manager';
 import { ensureWorkspace } from '@claude-code-server/shared';
 
@@ -70,6 +71,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
               question: protocol.question as string,
               options: JSON.stringify(protocol.options || []),
             },
+          });
+        } else if (protocol.type === 'CUSTOM_TASK_COMPLETE') {
+          // Custom task completed - mark as done
+          await prisma.task.update({
+            where: { id },
+            data: { status: 'completed', progress: 100 },
           });
         } else if (protocol.type === 'PHASE_COMPLETE') {
           const phase = protocol.phase as number;
