@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { getWorkspacePath } from '@claude-code-server/shared';
 
 const CreateTaskSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
         type: validated.type,
         description: validated.description,
         status: 'draft',
-        workspace: `/projects/${Date.now()}`,
+        workspace: '', // Will be set on execute
       },
     });
 

@@ -7,3 +7,4 @@ export {
   formatProgress,
   formatFileSize,
 } from './formatting.js';
+export { getOutputDirectory, getWorkspacePath, ensureWorkspace } from './workspace.js';

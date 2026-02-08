@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AgentManager } from '@claude-code-server/agent-manager';
+import { ensureWorkspace, getWorkspacePath } from '@claude-code-server/shared';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,29 +25,82 @@ export async function POST(_req: NextRequest, context: RouteContext) {
   }
 
   try {
-    // Update status to in_progress
+    // Ensure workspace directory exists
+    const workspace = ensureWorkspace(id);
+
+    // Update task with actual workspace path and set status
     await prisma.task.update({
       where: { id },
-      data: { status: 'in_progress' },
+      data: { status: 'in_progress', workspace },
     });
 
     // Start agent execution
     const agentManager = AgentManager.getInstance();
-    await agentManager.executeTask(id, task.description, {
-      workspace: task.workspace,
-      env: {
-        TASK_TYPE: task.type,
-        TASK_TITLE: task.title,
-      },
+
+    // Persist logs to DB
+    agentManager.on(`log:${id}`, async (message: string) => {
+      try {
+        await prisma.log.create({
+          data: { taskId: id, level: 'info', message },
+        });
+      } catch {
+        // Don't let log persistence failures stop execution
+      }
+    });
+
+    // Handle protocol events
+    agentManager.on(`protocol:${id}`, async (protocol: { type: string; [key: string]: unknown }) => {
+      try {
+        if (protocol.type === 'USER_QUESTION') {
+          await prisma.question.create({
+            data: {
+              taskId: id,
+              category: (protocol.category as string) || 'clarification',
+              question: protocol.question as string,
+              options: JSON.stringify(protocol.options || []),
+            },
+          });
+        } else if (protocol.type === 'PHASE_COMPLETE') {
+          await prisma.review.create({
+            data: {
+              taskId: id,
+              phase: protocol.phase as number,
+              status: 'pending',
+              deliverables: JSON.stringify(protocol.documents || []),
+            },
+          });
+          await prisma.task.update({
+            where: { id },
+            data: { currentPhase: protocol.phase as number, status: 'review' },
+          });
+        }
+      } catch {
+        // Don't let protocol persistence failures stop execution
+      }
     });
 
     // Listen for completion
     agentManager.once(`exit:${id}`, async (code: number | null) => {
       const finalStatus = code === 0 ? 'completed' : 'failed';
-      await prisma.task.update({
-        where: { id },
-        data: { status: finalStatus, progress: code === 0 ? 100 : undefined },
-      });
+      try {
+        await prisma.task.update({
+          where: { id },
+          data: { status: finalStatus, progress: code === 0 ? 100 : undefined },
+        });
+      } catch {
+        // Best effort
+      }
+      // Clean up listeners
+      agentManager.removeAllListeners(`log:${id}`);
+      agentManager.removeAllListeners(`protocol:${id}`);
+    });
+
+    await agentManager.executeTask(id, task.description, {
+      workspace,
+      env: {
+        TASK_TYPE: task.type,
+        TASK_TITLE: task.title,
+      },
     });
 
     return NextResponse.json({ success: true, data: { status: 'in_progress' } });
@@ -54,7 +108,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     await prisma.task.update({
       where: { id },
       data: { status: 'failed' },
-    });
+    }).catch(() => {});
 
     return NextResponse.json(
       {
