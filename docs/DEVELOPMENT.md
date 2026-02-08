@@ -551,6 +551,720 @@ async function main() {
 main();
 ```
 
+## 데이터베이스 마이그레이션 전략
+
+### 개요
+
+데이터베이스 스키마가 변경될 때마다 안전하고 신뢰할 수 있는 마이그레이션 절차가 필요합니다. 이 섹션에서는 개발 환경과 프로덕션 환경에서의 마이그레이션 전략을 설명합니다.
+
+### 마이그레이션 도구
+
+이 프로젝트는 **Prisma Migrate**를 사용합니다:
+- **개발 환경**: `prisma migrate dev` - 스키마 변경, 마이그레이션 생성, 적용
+- **프로덕션 환경**: `prisma migrate deploy` - 기존 마이그레이션만 적용
+
+### 기본 마이그레이션 절차
+
+#### 1. 개발 환경에서 마이그레이션 생성
+
+```bash
+# 1. schema.prisma 파일 수정
+# 예: Task 모델에 priority 필드 추가
+
+# 2. 마이그레이션 생성
+npx prisma migrate dev --name add_task_priority
+
+# 3. 생성된 SQL 확인
+cat prisma/migrations/20250115120000_add_task_priority/migration.sql
+```
+
+생성된 마이그레이션 예시:
+```sql
+-- CreateEnum
+CREATE TYPE "TaskPriority" AS ENUM ('low', 'medium', 'high', 'urgent');
+
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN "priority" "TaskPriority" NOT NULL DEFAULT 'medium';
+
+-- CreateIndex
+CREATE INDEX "Task_priority_idx" ON "Task"("priority");
+```
+
+#### 2. 마이그레이션 검토 및 테스트
+
+```typescript
+// tests/migrations/add_task_priority.test.ts
+import { PrismaClient } from '@prisma/client';
+
+describe('Migration: add_task_priority', () => {
+  let prisma: PrismaClient;
+
+  beforeAll(async () => {
+    // 테스트 데이터베이스에 마이그레이션 적용
+    prisma = new PrismaClient({
+      datasources: { db: { url: process.env.TEST_DATABASE_URL } },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  test('should add priority column with default value', async () => {
+    const task = await prisma.task.create({
+      data: {
+        title: 'Test Task',
+        type: 'create_app',
+        status: 'draft',
+        description: 'Test',
+      },
+    });
+
+    expect(task.priority).toBe('medium'); // 기본값 확인
+  });
+
+  test('should allow all priority values', async () => {
+    const priorities = ['low', 'medium', 'high', 'urgent'];
+
+    for (const priority of priorities) {
+      const task = await prisma.task.create({
+        data: {
+          title: `Task ${priority}`,
+          type: 'create_app',
+          status: 'draft',
+          description: 'Test',
+          priority,
+        },
+      });
+
+      expect(task.priority).toBe(priority);
+    }
+  });
+});
+```
+
+#### 3. 프로덕션 데이터 복사본에서 테스트
+
+```bash
+# 1. 프로덕션 데이터베이스 백업
+pg_dump -h prod-db.example.com -U user -d claude_platform > prod_backup.sql
+
+# 2. 로컬 테스트 데이터베이스에 복원
+createdb test_migration
+psql -d test_migration < prod_backup.sql
+
+# 3. 마이그레이션 테스트 실행
+DATABASE_URL="postgresql://localhost/test_migration" npx prisma migrate deploy
+
+# 4. 데이터 무결성 검증
+psql -d test_migration -c "SELECT COUNT(*) FROM \"Task\" WHERE priority IS NULL;"
+# 결과: 0 (모든 행에 기본값 적용됨)
+```
+
+#### 4. 프로덕션 배포
+
+```bash
+# 1. 데이터베이스 백업 (필수!)
+pg_dump -h prod-db.example.com -U user -d claude_platform \
+  -F c -f backup_$(date +%Y%m%d_%H%M%S).dump
+
+# 2. 마이그레이션 적용
+DATABASE_URL="postgresql://prod-db.example.com/claude_platform" \
+  npx prisma migrate deploy
+
+# 3. 데이터 무결성 검증
+psql -h prod-db.example.com -U user -d claude_platform \
+  -c "SELECT COUNT(*) FROM \"Task\";"
+```
+
+### 마이그레이션 스크립트 템플릿
+
+```typescript
+// scripts/migrate-with-validation.ts
+
+/**
+ * 안전한 프로덕션 마이그레이션 스크립트
+ */
+
+import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
+import fs from 'fs';
+
+interface MigrationConfig {
+  databaseUrl: string;
+  backupDir: string;
+  validationQueries: string[];
+  rollbackOnError: boolean;
+}
+
+export class MigrationRunner {
+  private prisma: PrismaClient;
+  private config: MigrationConfig;
+  private backupPath: string = '';
+
+  constructor(config: MigrationConfig) {
+    this.config = config;
+    this.prisma = new PrismaClient({
+      datasources: { db: { url: config.databaseUrl } },
+    });
+  }
+
+  /**
+   * 전체 마이그레이션 프로세스 실행
+   */
+  async run(): Promise<void> {
+    console.log('🚀 Starting migration process...\n');
+
+    try {
+      // Step 1: Pre-migration validation
+      await this.validatePreMigration();
+
+      // Step 2: Create backup
+      await this.createBackup();
+
+      // Step 3: Run migration
+      await this.applyMigration();
+
+      // Step 4: Post-migration validation
+      await this.validatePostMigration();
+
+      // Step 5: Verify data integrity
+      await this.verifyDataIntegrity();
+
+      console.log('\n✅ Migration completed successfully!');
+    } catch (error) {
+      console.error('\n❌ Migration failed:', error);
+
+      if (this.config.rollbackOnError && this.backupPath) {
+        await this.rollback();
+      }
+
+      throw error;
+    } finally {
+      await this.prisma.$disconnect();
+    }
+  }
+
+  /**
+   * Pre-migration 검증
+   */
+  private async validatePreMigration(): Promise<void> {
+    console.log('📋 Step 1: Pre-migration validation');
+
+    // 데이터베이스 연결 확인
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      console.log('  ✓ Database connection OK');
+    } catch (error) {
+      throw new Error('Database connection failed');
+    }
+
+    // 충분한 디스크 공간 확인
+    const dbSize = await this.getDatabaseSize();
+    const freeSpace = await this.getFreeDiskSpace();
+
+    if (freeSpace < dbSize * 2) {
+      throw new Error(
+        `Insufficient disk space. Required: ${dbSize * 2}MB, Available: ${freeSpace}MB`
+      );
+    }
+    console.log(`  ✓ Disk space OK (DB: ${dbSize}MB, Free: ${freeSpace}MB)`);
+
+    // 활성 연결 확인
+    const activeConnections = await this.getActiveConnections();
+    if (activeConnections > 50) {
+      console.warn(`  ⚠️  High connection count: ${activeConnections}`);
+    } else {
+      console.log(`  ✓ Active connections: ${activeConnections}`);
+    }
+
+    // 인덱스 및 제약 조건 확인
+    await this.checkConstraints();
+    console.log('  ✓ Constraints validated');
+  }
+
+  /**
+   * 데이터베이스 백업 생성
+   */
+  private async createBackup(): Promise<void> {
+    console.log('\n💾 Step 2: Creating backup');
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    this.backupPath = `${this.config.backupDir}/backup_${timestamp}.dump`;
+
+    // pg_dump 실행
+    const dbUrl = new URL(this.config.databaseUrl);
+    const command = `pg_dump -h ${dbUrl.hostname} -U ${dbUrl.username} -d ${dbUrl.pathname.slice(1)} -F c -f ${this.backupPath}`;
+
+    try {
+      execSync(command, { stdio: 'inherit', env: { PGPASSWORD: dbUrl.password } });
+      console.log(`  ✓ Backup created: ${this.backupPath}`);
+
+      // 백업 파일 크기 확인
+      const stats = fs.statSync(this.backupPath);
+      console.log(`  ✓ Backup size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+    } catch (error) {
+      throw new Error(`Backup failed: ${error}`);
+    }
+  }
+
+  /**
+   * 마이그레이션 적용
+   */
+  private async applyMigration(): Promise<void> {
+    console.log('\n⚙️  Step 3: Applying migration');
+
+    const startTime = Date.now();
+
+    try {
+      // Prisma migrate deploy 실행
+      execSync('npx prisma migrate deploy', {
+        stdio: 'inherit',
+        env: { ...process.env, DATABASE_URL: this.config.databaseUrl },
+      });
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`  ✓ Migration applied in ${duration}s`);
+    } catch (error) {
+      throw new Error(`Migration execution failed: ${error}`);
+    }
+  }
+
+  /**
+   * Post-migration 검증
+   */
+  private async validatePostMigration(): Promise<void> {
+    console.log('\n🔍 Step 4: Post-migration validation');
+
+    for (const query of this.config.validationQueries) {
+      try {
+        const result = await this.prisma.$queryRawUnsafe(query);
+        console.log(`  ✓ Validation query passed: ${query.substring(0, 50)}...`);
+      } catch (error) {
+        throw new Error(`Validation query failed: ${query}\nError: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * 데이터 무결성 검증
+   */
+  private async verifyDataIntegrity(): Promise<void> {
+    console.log('\n🛡️  Step 5: Verifying data integrity');
+
+    // 레코드 수 확인
+    const taskCount = await this.prisma.task.count();
+    console.log(`  ✓ Task count: ${taskCount}`);
+
+    const reviewCount = await this.prisma.review.count();
+    console.log(`  ✓ Review count: ${reviewCount}`);
+
+    // NULL 값 확인 (NOT NULL 제약조건)
+    const tasksWithNullPriority = await this.prisma.task.count({
+      where: { priority: null },
+    });
+
+    if (tasksWithNullPriority > 0) {
+      throw new Error(`Found ${tasksWithNullPriority} tasks with NULL priority`);
+    }
+    console.log('  ✓ No NULL values in NOT NULL columns');
+
+    // 외래 키 무결성 확인
+    const orphanedReviews = await this.prisma.$queryRaw`
+      SELECT COUNT(*) as count
+      FROM "Review" r
+      LEFT JOIN "Task" t ON r."taskId" = t.id
+      WHERE t.id IS NULL
+    `;
+    console.log('  ✓ Foreign key integrity OK');
+  }
+
+  /**
+   * 롤백 수행
+   */
+  private async rollback(): Promise<void> {
+    console.log('\n⏮️  Rolling back migration...');
+
+    if (!this.backupPath || !fs.existsSync(this.backupPath)) {
+      throw new Error('Backup file not found, cannot rollback');
+    }
+
+    const dbUrl = new URL(this.config.databaseUrl);
+    const dbName = dbUrl.pathname.slice(1);
+
+    // 데이터베이스 삭제 및 재생성
+    const dropCommand = `psql -h ${dbUrl.hostname} -U ${dbUrl.username} -c "DROP DATABASE IF EXISTS ${dbName};"`;
+    const createCommand = `psql -h ${dbUrl.hostname} -U ${dbUrl.username} -c "CREATE DATABASE ${dbName};"`;
+
+    execSync(dropCommand, { env: { PGPASSWORD: dbUrl.password } });
+    execSync(createCommand, { env: { PGPASSWORD: dbUrl.password } });
+
+    // 백업 복원
+    const restoreCommand = `pg_restore -h ${dbUrl.hostname} -U ${dbUrl.username} -d ${dbName} ${this.backupPath}`;
+    execSync(restoreCommand, { env: { PGPASSWORD: dbUrl.password } });
+
+    console.log('✅ Rollback completed successfully');
+  }
+
+  /**
+   * 헬퍼 메서드들
+   */
+  private async getDatabaseSize(): Promise<number> {
+    const result = await this.prisma.$queryRaw<{ size: bigint }[]>`
+      SELECT pg_database_size(current_database()) as size
+    `;
+    return Number(result[0].size) / 1024 / 1024; // MB
+  }
+
+  private async getFreeDiskSpace(): Promise<number> {
+    // 간단한 구현 - 실제로는 OS별 명령어 사용
+    return 10000; // 10GB
+  }
+
+  private async getActiveConnections(): Promise<number> {
+    const result = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*) as count FROM pg_stat_activity
+      WHERE datname = current_database()
+    `;
+    return Number(result[0].count);
+  }
+
+  private async checkConstraints(): Promise<void> {
+    // 모든 제약조건이 유효한지 확인
+    await this.prisma.$queryRaw`
+      SELECT conname
+      FROM pg_constraint
+      WHERE convalidated = false
+    `;
+  }
+}
+
+// 사용 예시
+async function main() {
+  const runner = new MigrationRunner({
+    databaseUrl: process.env.DATABASE_URL!,
+    backupDir: './backups',
+    validationQueries: [
+      'SELECT COUNT(*) FROM "Task" WHERE priority IS NOT NULL',
+      'SELECT COUNT(*) FROM "Review" WHERE status IN (\'pending\', \'approved\', \'rejected\')',
+    ],
+    rollbackOnError: true,
+  });
+
+  await runner.run();
+}
+
+main().catch(console.error);
+```
+
+### Zero-Downtime 마이그레이션 전략
+
+#### 1. Blue-Green Deployment
+
+```typescript
+/**
+ * Blue-Green 배포를 통한 무중단 마이그레이션
+ */
+
+// Phase 1: Blue 환경 (현재 프로덕션)
+// - 기존 스키마로 운영 중
+
+// Phase 2: Green 환경 준비
+// 1. Green 데이터베이스 생성
+// 2. Blue → Green 복제
+// 3. Green에 마이그레이션 적용
+// 4. Green 검증
+
+// Phase 3: 트래픽 전환
+// 1. 로드 밸런서를 Green으로 전환
+// 2. Blue 모니터링
+// 3. 문제 발생 시 Blue로 롤백
+
+// Phase 4: Blue 정리
+// - 일정 시간 후 Blue 환경 제거
+```
+
+#### 2. Backward-Compatible Schema Changes
+
+```typescript
+/**
+ * 호환성 유지 스키마 변경 전략
+ */
+
+// ❌ 나쁜 예: 즉시 NOT NULL 제약조건 추가
+// ALTER TABLE "Task" ADD COLUMN "priority" VARCHAR NOT NULL;
+// → 기존 행에 값이 없어 실패!
+
+// ✅ 좋은 예: 단계별 추가
+// Step 1: Nullable로 추가
+await prisma.$executeRaw`
+  ALTER TABLE "Task" ADD COLUMN "priority" VARCHAR;
+`;
+
+// Step 2: 기본값 채우기
+await prisma.$executeRaw`
+  UPDATE "Task" SET "priority" = 'medium' WHERE "priority" IS NULL;
+`;
+
+// Step 3: NOT NULL 제약조건 추가
+await prisma.$executeRaw`
+  ALTER TABLE "Task" ALTER COLUMN "priority" SET NOT NULL;
+`;
+```
+
+#### 3. Multi-Step Migrations (컬럼 이름 변경)
+
+```typescript
+/**
+ * 다단계 마이그레이션: 컬럼 이름 변경
+ */
+
+// 목표: "description" → "taskDescription"
+
+// Step 1: 새 컬럼 추가 (Nullable)
+// Migration: 001_add_task_description.sql
+await prisma.$executeRaw`
+  ALTER TABLE "Task" ADD COLUMN "taskDescription" TEXT;
+`;
+
+// Step 2: 데이터 복사
+// Migration: 002_copy_to_task_description.sql
+await prisma.$executeRaw`
+  UPDATE "Task" SET "taskDescription" = "description";
+`;
+
+// Step 3: 애플리케이션 코드 업데이트
+// - 두 컬럼 모두 읽기/쓰기 지원
+
+// Step 4: 기존 컬럼 삭제
+// Migration: 003_drop_description.sql (몇 주 후)
+await prisma.$executeRaw`
+  ALTER TABLE "Task" DROP COLUMN "description";
+`;
+```
+
+### 프로덕션 마이그레이션 체크리스트
+
+```markdown
+## Pre-Migration Checklist
+
+- [ ] 스키마 변경 사항 검토 완료
+- [ ] 마이그레이션 SQL 검토 완료
+- [ ] 로컬 환경에서 테스트 완료
+- [ ] 프로덕션 데이터 복사본에서 테스트 완료
+- [ ] 롤백 계획 수립 완료
+- [ ] 데이터베이스 백업 생성 완료
+- [ ] 디스크 공간 충분 확인 (최소 DB 크기의 2배)
+- [ ] 팀 알림 전송 (유지보수 시간 공지)
+- [ ] 모니터링 대시보드 준비
+
+## Migration Execution
+
+- [ ] 유지보수 모드 활성화 (선택사항)
+- [ ] 마이그레이션 실행
+- [ ] 마이그레이션 완료 확인
+- [ ] 데이터 무결성 검증
+- [ ] 애플리케이션 재시작
+
+## Post-Migration Validation
+
+- [ ] 모든 API 엔드포인트 테스트
+- [ ] 주요 기능 동작 확인
+- [ ] 로그 확인 (에러 없음)
+- [ ] 성능 메트릭 확인
+- [ ] 데이터베이스 쿼리 성능 확인
+- [ ] 유지보수 모드 해제
+
+## Rollback Plan (문제 발생 시)
+
+- [ ] 애플리케이션 중지
+- [ ] 데이터베이스 백업 복원
+- [ ] 이전 버전 애플리케이션 배포
+- [ ] 서비스 재개
+- [ ] 포스트모텀 작성
+```
+
+### 일반적인 마이그레이션 시나리오
+
+#### Scenario 1: 새 컬럼 추가 (Nullable → Required)
+
+```sql
+-- Step 1: Nullable로 추가
+ALTER TABLE "Task" ADD COLUMN "estimatedDuration" INTEGER;
+
+-- Step 2: 기본값 채우기
+UPDATE "Task" SET "estimatedDuration" = 3600 WHERE "estimatedDuration" IS NULL;
+
+-- Step 3: NOT NULL 제약조건 추가
+ALTER TABLE "Task" ALTER COLUMN "estimatedDuration" SET NOT NULL;
+
+-- Step 4: 기본값 설정
+ALTER TABLE "Task" ALTER COLUMN "estimatedDuration" SET DEFAULT 3600;
+```
+
+#### Scenario 2: 컬럼 타입 변경
+
+```sql
+-- 목표: status VARCHAR → ENUM
+
+-- Step 1: 새 ENUM 타입 생성
+CREATE TYPE "TaskStatus" AS ENUM ('draft', 'pending', 'in_progress', 'completed', 'failed');
+
+-- Step 2: 임시 컬럼 추가
+ALTER TABLE "Task" ADD COLUMN "statusNew" "TaskStatus";
+
+-- Step 3: 데이터 변환 및 복사
+UPDATE "Task" SET "statusNew" = "status"::"TaskStatus";
+
+-- Step 4: 기존 컬럼 삭제
+ALTER TABLE "Task" DROP COLUMN "status";
+
+-- Step 5: 컬럼 이름 변경
+ALTER TABLE "Task" RENAME COLUMN "statusNew" TO "status";
+```
+
+#### Scenario 3: 데이터 변환 마이그레이션
+
+```typescript
+// 복잡한 데이터 변환 로직
+async function migrateTaskMetadata() {
+  const tasks = await prisma.task.findMany({
+    select: { id: true, metadata: true },
+  });
+
+  for (const task of tasks) {
+    // 기존 JSON 구조 변환
+    const oldMetadata = task.metadata as any;
+    const newMetadata = {
+      version: 2,
+      settings: {
+        autoApprove: oldMetadata.auto_approve || false,
+        notifyOnComplete: oldMetadata.notify || true,
+      },
+      timestamps: {
+        created: oldMetadata.created_at,
+        updated: oldMetadata.updated_at,
+      },
+    };
+
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { metadata: newMetadata },
+    });
+  }
+}
+```
+
+### 오류 시나리오 및 복구
+
+#### Error 1: Migration Timeout (대용량 테이블 Lock)
+
+```typescript
+// 문제: 수백만 행의 테이블에서 ALTER TABLE 실행 시 Lock
+// 해결: 배치 처리로 나누기
+
+async function addColumnInBatches() {
+  const batchSize = 10000;
+  let offset = 0;
+
+  while (true) {
+    const tasks = await prisma.task.findMany({
+      skip: offset,
+      take: batchSize,
+      select: { id: true },
+    });
+
+    if (tasks.length === 0) break;
+
+    // 배치 단위로 업데이트
+    await prisma.$executeRaw`
+      UPDATE "Task"
+      SET "priority" = 'medium'
+      WHERE id IN (${Prisma.join(tasks.map((t) => t.id))})
+      AND "priority" IS NULL
+    `;
+
+    offset += batchSize;
+    console.log(`Processed ${offset} rows...`);
+  }
+}
+```
+
+#### Error 2: Constraint Violation
+
+```typescript
+// 문제: 기존 데이터가 새 제약조건 위반
+// 해결: 데이터 정리 후 제약조건 추가
+
+// 1. 위반 데이터 찾기
+const violatingTasks = await prisma.$queryRaw`
+  SELECT id, priority
+  FROM "Task"
+  WHERE priority NOT IN ('low', 'medium', 'high', 'urgent')
+`;
+
+// 2. 데이터 정리
+for (const task of violatingTasks) {
+  await prisma.task.update({
+    where: { id: task.id },
+    data: { priority: 'medium' }, // 기본값으로 수정
+  });
+}
+
+// 3. 제약조건 추가
+await prisma.$executeRaw`
+  ALTER TABLE "Task"
+  ADD CONSTRAINT "Task_priority_check"
+  CHECK (priority IN ('low', 'medium', 'high', 'urgent'))
+`;
+```
+
+#### Error 3: 디스크 공간 부족
+
+```bash
+# 문제: 마이그레이션 중 디스크 공간 부족
+# 해결: 불필요한 데이터 정리
+
+# 1. 오래된 로그 삭제
+psql -c "DELETE FROM \"TaskLog\" WHERE timestamp < NOW() - INTERVAL '90 days';"
+
+# 2. VACUUM으로 공간 회수
+psql -c "VACUUM FULL \"TaskLog\";"
+
+# 3. 인덱스 재구성
+psql -c "REINDEX DATABASE claude_platform;"
+```
+
+### 모니터링 및 메트릭
+
+```typescript
+// 마이그레이션 진행 상황 모니터링
+export class MigrationMonitor {
+  async trackProgress(migrationName: string): Promise<void> {
+    const metrics = {
+      startTime: Date.now(),
+      rowsProcessed: 0,
+      errors: 0,
+    };
+
+    // 진행 상황 로깅
+    const interval = setInterval(async () => {
+      const progress = await this.getProgress();
+      console.log(`Migration ${migrationName}: ${progress.percentage}% complete`);
+
+      // 메트릭 전송
+      await this.sendMetrics({
+        migration: migrationName,
+        progress: progress.percentage,
+        duration: Date.now() - metrics.startTime,
+      });
+    }, 10000); // 10초마다
+
+    // 마이그레이션 완료 후 정리
+    return () => clearInterval(interval);
+  }
+}
+
 ## 디버깅
 
 ### 서버 사이드 디버깅

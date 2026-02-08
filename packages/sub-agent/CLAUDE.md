@@ -167,11 +167,327 @@ package.json
 가이드: /guide/planning, design, development, verification
 ```
 
+#### 가이드 문서 누락 처리 (Handling Missing Guide Documents)
+
+**문제**: `/guide/` 폴더의 가이드 파일이 누락, 이동, 또는 손상된 경우
+
+**처리 전략**:
+
+1. **Agent Manager의 사전 검증**
+   - Sub-agent 생성 전 필수 가이드 파일 존재 확인
+   - 누락 시 사용자에게 에러 보고
+
+2. **Critical 가이드 누락** (예: 9개 planning 가이드 전부)
+   - ❌ **작업 중단**: 필수 가이드 없이는 진행 불가
+   - 에러 메시지: `"Cannot proceed: Required guide documents are missing"`
+   - 사용자에게 알림: `/guide/` 디렉토리 복구 필요
+
+3. **Partial 가이드 누락** (예: 9개 중 2개 누락)
+   - ⚠️ **계속 진행**: 사용 가능한 가이드로 작업
+   - 경고 로그: `"Warning: 2 guides missing, proceeding with available guides"`
+   - 일반 지식으로 부족한 부분 보완
+   - 사용자에게 품질 저하 가능성 알림
+
+4. **Optional 가이드 누락** (예: verification 가이드)
+   - ✅ **계속 진행**: 기본 검증 규칙 사용
+   - 경고 로그만 출력
+
+**검증 코드 예시**:
+
+```typescript
+// Agent Manager의 사전 검증
+const requiredGuides = [
+  '/guide/planning/01_idea.md',
+  '/guide/planning/02_market.md',
+  // ... 9개 planning 가이드
+];
+
+const missingGuides = requiredGuides.filter(path => !fs.existsSync(path));
+
+if (missingGuides.length > 3) {
+  // Critical: 3개 초과 누락
+  throw new Error(
+    `Critical guides missing: ${missingGuides.join(', ')}\n` +
+    `Cannot start create_app workflow. Please restore guide documents.`
+  );
+} else if (missingGuides.length > 0) {
+  // Warning: 일부 누락
+  console.warn(
+    `⚠️  Warning: ${missingGuides.length} guides missing\n` +
+    `Proceeding with degraded quality. Missing: ${missingGuides.join(', ')}`
+  );
+
+  await notifyUser({
+    type: 'warning',
+    message: `Some guide documents are missing. Quality may be affected.`,
+  });
+}
+```
+
+**Sub-agent 내부 처리**:
+
+```typescript
+// Sub-agent가 가이드 읽기 시도
+async function readGuide(guidePath: string): Promise<string> {
+  try {
+    return await fs.readFile(guidePath, 'utf-8');
+  } catch (error) {
+    console.warn(`⚠️  Guide not found: ${guidePath}`);
+    console.warn(`Falling back to general knowledge for this section.`);
+
+    // 폴백: 일반 지식 사용
+    return generateFallbackGuidance(guidePath);
+  }
+}
+
+function generateFallbackGuidance(guidePath: string): string {
+  // 파일명에서 주제 추출 (예: "01_idea.md" → "idea")
+  const topic = path.basename(guidePath, '.md').split('_')[1];
+
+  return `
+⚠️  [Fallback Guidance - Guide file missing]
+
+This section should cover: ${topic}
+
+Please use your general knowledge to create comprehensive content for this topic.
+Ensure the output meets the quality standards (500+ characters, no placeholders).
+  `.trim();
+}
+```
+
+**복구 권장사항**:
+
+- `/guide/` 디렉토리 구조 확인
+- 저장소에서 가이드 재설치
+- 가이드 파일 권한 확인 (읽기 가능)
+- 관리자에게 문의
+
 ### modify_app - 앱 수정
 ```
 워크플로우: 분석(3) → 계획(4) → 구현(6) → 테스트
 산출물: 분석 문서 + 수정된 코드
 가이드: 기존 가이드 + 수정 전략
+```
+
+#### 코드베이스 부재 처리 (Handling Missing or Empty Codebase)
+
+**문제**: 사용자가 modify_app을 선택했지만 코드베이스 경로를 제공하지 않았거나, 경로가 비어있는 경우
+
+**처리 전략**:
+
+1. **사전 검증** (Agent Manager의 Pre-flight Check)
+   - Workspace 디렉토리 존재 확인
+   - 최소한의 소스 파일 존재 확인 (*.js, *.ts, *.py 등)
+   - 프로젝트 마커 확인 (package.json, requirements.txt 등)
+
+2. **코드베이스 미제공**
+   - ❌ **작업 중단**
+   - 사용자 프롬프트: `"Please provide the path to the existing codebase"`
+   - 제안: `"Did you mean to create a new app? Use create_app workflow instead."`
+
+3. **빈 디렉토리**
+   - ❌ **작업 중단**
+   - 에러: `"Cannot modify empty project. Use create_app workflow instead."`
+   - Workflow 타입 변환 제안: `create_app`
+
+4. **불완전한 코드베이스** (예: 빌드 산출물만 존재, 소스 없음)
+   - ⚠️ **경고 후 계속**
+   - 경고: `"Codebase appears incomplete (no source files found)"`
+   - Phase 1 (Analysis)로 진행하되 문제 보고
+
+**검증 코드 예시**:
+
+```typescript
+// Agent Manager의 Pre-flight validation
+class CodebaseValidator {
+  async validate(workspacePath: string): Promise<ValidationResult> {
+    // 1. 디렉토리 존재 확인
+    if (!await this.dirExists(workspacePath)) {
+      return {
+        valid: false,
+        error: 'DIRECTORY_NOT_FOUND',
+        message: `Workspace directory not found: ${workspacePath}`,
+        suggestion: 'Please verify the path or create a new task.',
+      };
+    }
+
+    // 2. 디렉토리 비어있는지 확인
+    const files = await fs.readdir(workspacePath);
+    if (files.length === 0) {
+      return {
+        valid: false,
+        error: 'EMPTY_DIRECTORY',
+        message: 'Cannot modify empty project.',
+        suggestion: 'Use create_app workflow to create a new application.',
+        suggestedWorkflowType: 'create_app',
+      };
+    }
+
+    // 3. 소스 파일 존재 확인
+    const sourceFiles = await this.findSourceFiles(workspacePath);
+    if (sourceFiles.length === 0) {
+      return {
+        valid: false,
+        error: 'NO_SOURCE_FILES',
+        message: 'No source code files found in workspace.',
+        suggestion: 'Only build artifacts detected. Please provide source code directory.',
+      };
+    }
+
+    // 4. 프로젝트 구조 확인 (선택 사항)
+    const hasProjectMarker = await this.hasProjectMarker(workspacePath);
+    if (!hasProjectMarker) {
+      console.warn(`⚠️  No project markers (package.json, etc.) found`);
+      // 경고만 출력, 계속 진행
+    }
+
+    return {
+      valid: true,
+      sourceFileCount: sourceFiles.length,
+      projectType: await this.detectProjectType(workspacePath),
+    };
+  }
+
+  private async findSourceFiles(dirPath: string): Promise<string[]> {
+    const sourceExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.go', '.rs'];
+    const files = await this.recursiveScan(dirPath);
+
+    return files.filter(file =>
+      sourceExtensions.some(ext => file.endsWith(ext))
+    );
+  }
+
+  private async hasProjectMarker(dirPath: string): Promise<boolean> {
+    const markers = [
+      'package.json',
+      'requirements.txt',
+      'pom.xml',
+      'Cargo.toml',
+      'go.mod',
+    ];
+
+    for (const marker of markers) {
+      const markerPath = path.join(dirPath, marker);
+      if (await this.fileExists(markerPath)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private async detectProjectType(dirPath: string): Promise<string> {
+    if (await this.fileExists(path.join(dirPath, 'package.json'))) {
+      return 'Node.js';
+    }
+    if (await this.fileExists(path.join(dirPath, 'requirements.txt'))) {
+      return 'Python';
+    }
+    if (await this.fileExists(path.join(dirPath, 'pom.xml'))) {
+      return 'Java';
+    }
+    return 'Unknown';
+  }
+}
+
+interface ValidationResult {
+  valid: boolean;
+  error?: string;
+  message?: string;
+  suggestion?: string;
+  suggestedWorkflowType?: string;
+  sourceFileCount?: number;
+  projectType?: string;
+}
+```
+
+**Sub-agent 시작 전 검증**:
+
+```typescript
+// Agent Manager가 Sub-agent 생성 전 호출
+async function startModifyAppTask(taskId: string, workspacePath: string) {
+  const validator = new CodebaseValidator();
+  const validation = await validator.validate(workspacePath);
+
+  if (!validation.valid) {
+    // 검증 실패 - 사용자에게 알림
+    await notifyUser(taskId, {
+      type: 'error',
+      title: 'Cannot Start Task',
+      message: validation.message,
+      suggestion: validation.suggestion,
+      actions: validation.suggestedWorkflowType
+        ? [{
+            label: `Convert to ${validation.suggestedWorkflowType}`,
+            action: 'convert_workflow_type',
+            newType: validation.suggestedWorkflowType,
+          }]
+        : [],
+    });
+
+    // Task 상태를 'failed'로 업데이트
+    await updateTaskStatus(taskId, 'failed', validation.error);
+    return;
+  }
+
+  // 검증 성공 - Sub-agent 시작
+  console.log(`✅ Codebase validation passed:`);
+  console.log(`   - Source files: ${validation.sourceFileCount}`);
+  console.log(`   - Project type: ${validation.projectType}`);
+
+  await spawnSubAgent(taskId, {
+    workflowType: 'modify_app',
+    workspacePath,
+    codebaseInfo: {
+      fileCount: validation.sourceFileCount,
+      projectType: validation.projectType,
+    },
+  });
+}
+```
+
+**에러 메시지 예시**:
+
+```typescript
+// 코드베이스 미제공
+{
+  error: "No codebase found at /path/to/project. Please verify the path.",
+  suggestion: "Provide the path to your existing project directory."
+}
+
+// 빈 디렉토리
+{
+  error: "Codebase is empty. Did you mean to create a new app?",
+  suggestion: "Use create_app workflow to create a new application.",
+  action: "Convert to create_app"
+}
+
+// 소스 파일 없음
+{
+  error: "Only build artifacts found (no source files).",
+  suggestion: "Please provide the source code directory, not the build output."
+}
+```
+
+**Workflow 타입 자동 변환**:
+
+사용자가 "Convert to create_app" 버튼을 클릭하면:
+
+```typescript
+async function convertWorkflowType(taskId: string, newType: string) {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      workflowType: newType,
+      status: 'pending',
+    },
+  });
+
+  console.log(`✅ Task ${taskId} converted from modify_app to ${newType}`);
+
+  // 새로운 workflow로 재시작
+  await startTask(taskId);
+}
 ```
 
 ### workflow - 워크플로우 자동화

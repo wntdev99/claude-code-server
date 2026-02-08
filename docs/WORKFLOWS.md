@@ -400,6 +400,655 @@ Phase 4: 검증 (Testing) - 변경사항 확인
 - 위험 및 하위 호환성 무시하지 않기
 - 테스트 계획 잊지 않기
 
+### Filename Sanitization (파일명 정제)
+
+#### 문제 상황
+
+Agent가 특수 문자, 공백, 또는 OS 예약어가 포함된 파일명을 생성하려고 시도할 수 있습니다:
+
+**문제가 있는 파일명 예시**:
+- `my file.txt` (공백)
+- `user/data.json` (경로 구분자)
+- `../../etc/passwd` (경로 순회)
+- `CON.txt` (Windows 예약어)
+- `file<name>.txt` (허용되지 않는 문자)
+- `very_long_filename_that_exceeds_255_bytes...` (길이 초과)
+
+**문제점**:
+- 크로스 플랫폼 호환성 문제 (Windows, Linux, macOS)
+- 파일 시스템 에러 발생
+- 보안 취약점 (경로 순회 공격)
+- 백업/배포 시 문제 발생
+
+#### 해결 방안
+
+모든 파일 생성 전에 파일명을 정제하고 검증:
+
+```typescript
+// packages/shared/src/utils/filenameSanitizer.ts
+
+/**
+ * 파일명 정제 유틸리티
+ *
+ * 참고 표준:
+ * - POSIX: IEEE Std 1003.1-2017
+ * - Windows: https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+ * - macOS: HFS+/APFS 제한사항
+ */
+export class FilenameSanitizer {
+  // 최대 파일명 길이 (바이트 단위)
+  private static readonly MAX_FILENAME_LENGTH = 255;
+
+  // Windows 예약 파일명
+  private static readonly WINDOWS_RESERVED_NAMES = new Set([
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+  ]);
+
+  // 허용되지 않는 문자 (크로스 플랫폼)
+  private static readonly INVALID_CHARS = /[<>:"/\\|?*\x00-\x1F]/g;
+
+  /**
+   * 파일명 정제 (메인 함수)
+   */
+  static sanitize(filename: string, options?: SanitizeOptions): string {
+    if (!filename || filename.trim().length === 0) {
+      throw new FilenameError('Filename cannot be empty');
+    }
+
+    let sanitized = filename;
+
+    // 1. 공백 처리
+    if (options?.replaceSpaces !== false) {
+      sanitized = sanitized.replace(/\s+/g, '_');
+    }
+
+    // 2. 허용되지 않는 문자 제거/교체
+    sanitized = sanitized.replace(
+      this.INVALID_CHARS,
+      options?.replacementChar || '_'
+    );
+
+    // 3. 경로 구분자 제거 (보안)
+    sanitized = sanitized.replace(/[\/\\]/g, '_');
+
+    // 4. 연속된 점 제거 (..., .., etc.)
+    sanitized = sanitized.replace(/\.{2,}/g, '.');
+
+    // 5. 앞뒤 공백 및 점 제거
+    sanitized = sanitized.replace(/^[\s.]+|[\s.]+$/g, '');
+
+    // 6. OS 예약어 체크
+    const baseName = this.getBaseName(sanitized);
+    if (this.isReservedName(baseName)) {
+      sanitized = `_${sanitized}`;
+    }
+
+    // 7. 길이 제한 (255 바이트)
+    sanitized = this.truncateToByteLimit(sanitized, this.MAX_FILENAME_LENGTH);
+
+    // 8. 최종 검증
+    if (sanitized.length === 0) {
+      throw new FilenameError('Sanitized filename is empty');
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * 파일명 검증 (생성 전 체크)
+   */
+  static validate(filename: string): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // 1. 빈 파일명
+    if (!filename || filename.trim().length === 0) {
+      errors.push('Filename is empty');
+      return { valid: false, errors, warnings };
+    }
+
+    // 2. 길이 체크
+    const byteLength = Buffer.byteLength(filename, 'utf-8');
+    if (byteLength > this.MAX_FILENAME_LENGTH) {
+      errors.push(
+        `Filename too long: ${byteLength} bytes (max: ${this.MAX_FILENAME_LENGTH})`
+      );
+    }
+
+    // 3. 허용되지 않는 문자
+    if (this.INVALID_CHARS.test(filename)) {
+      errors.push('Filename contains invalid characters: < > : " / \\ | ? *');
+    }
+
+    // 4. 경로 구분자
+    if (filename.includes('/') || filename.includes('\\')) {
+      errors.push('Filename contains path separators');
+    }
+
+    // 5. 경로 순회 시도
+    if (filename.includes('..')) {
+      errors.push('Filename contains path traversal sequence (..)');
+    }
+
+    // 6. OS 예약어
+    const baseName = this.getBaseName(filename);
+    if (this.isReservedName(baseName)) {
+      warnings.push(`Filename matches OS reserved name: ${baseName}`);
+    }
+
+    // 7. 공백
+    if (/\s/.test(filename)) {
+      warnings.push('Filename contains spaces (not recommended)');
+    }
+
+    // 8. 특수 문자
+    if (/[^\w\-.]/.test(filename)) {
+      warnings.push('Filename contains special characters');
+    }
+
+    // 9. 점으로 시작
+    if (filename.startsWith('.')) {
+      warnings.push('Filename starts with dot (hidden file on Unix)');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * OS 예약어 체크
+   */
+  private static isReservedName(baseName: string): boolean {
+    const upper = baseName.toUpperCase();
+    return this.WINDOWS_RESERVED_NAMES.has(upper);
+  }
+
+  /**
+   * 확장자를 제외한 파일명 추출
+   */
+  private static getBaseName(filename: string): string {
+    const lastDot = filename.lastIndexOf('.');
+    if (lastDot === -1 || lastDot === 0) {
+      return filename;
+    }
+    return filename.substring(0, lastDot);
+  }
+
+  /**
+   * 바이트 길이 제한으로 문자열 자르기
+   */
+  private static truncateToByteLimit(str: string, maxBytes: number): string {
+    let truncated = str;
+
+    while (Buffer.byteLength(truncated, 'utf-8') > maxBytes) {
+      // 끝에서 한 글자씩 제거
+      truncated = truncated.slice(0, -1);
+    }
+
+    return truncated;
+  }
+
+  /**
+   * 안전한 파일명 생성 (타임스탬프 기반)
+   */
+  static generateSafeFilename(
+    prefix: string = 'file',
+    extension: string = 'txt'
+  ): string {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const sanitizedPrefix = this.sanitize(prefix);
+
+    return `${sanitizedPrefix}_${timestamp}_${random}.${extension}`;
+  }
+}
+
+interface SanitizeOptions {
+  replaceSpaces?: boolean;      // 공백을 언더스코어로 교체 (기본: true)
+  replacementChar?: string;      // 유효하지 않은 문자를 교체할 문자 (기본: '_')
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+class FilenameError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FilenameError';
+  }
+}
+```
+
+#### 안전한 파일 쓰기 래퍼
+
+```typescript
+// packages/shared/src/utils/safeFileOperations.ts
+
+import fs from 'fs/promises';
+import path from 'path';
+import { FilenameSanitizer } from './filenameSanitizer';
+import { validatePath } from './validatePath';
+
+/**
+ * 안전한 파일 쓰기 (파일명 정제 포함)
+ */
+export async function safeWriteFile(
+  dirPath: string,
+  filename: string,
+  content: string,
+  workspaceRoot: string
+): Promise<string> {
+  // 1. 파일명 검증
+  const validation = FilenameSanitizer.validate(filename);
+
+  if (!validation.valid) {
+    throw new Error(
+      `Invalid filename "${filename}": ${validation.errors.join(', ')}`
+    );
+  }
+
+  // 2. 경고 로깅
+  if (validation.warnings.length > 0) {
+    console.warn(`⚠️  Filename warnings:`, validation.warnings);
+  }
+
+  // 3. 파일명 정제
+  const sanitizedFilename = FilenameSanitizer.sanitize(filename);
+
+  // 4. 전체 경로 생성
+  const fullPath = path.join(dirPath, sanitizedFilename);
+
+  // 5. 경로 검증 (경로 순회 방지)
+  if (!validatePath(fullPath, workspaceRoot)) {
+    throw new Error(`Access denied: Path outside workspace`);
+  }
+
+  // 6. 디렉토리 확인 및 생성
+  await fs.mkdir(dirPath, { recursive: true });
+
+  // 7. 파일 쓰기
+  await fs.writeFile(fullPath, content, 'utf-8');
+
+  console.log(`✅ File written safely: ${sanitizedFilename}`);
+
+  // 8. 정제된 경로 반환
+  return fullPath;
+}
+
+/**
+ * 배치 파일 생성 (여러 파일 동시 생성)
+ */
+export async function safeWriteFiles(
+  files: FileToWrite[],
+  workspaceRoot: string
+): Promise<WriteResult[]> {
+  const results: WriteResult[] = [];
+
+  for (const file of files) {
+    try {
+      const writtenPath = await safeWriteFile(
+        file.dirPath,
+        file.filename,
+        file.content,
+        workspaceRoot
+      );
+
+      results.push({
+        success: true,
+        originalFilename: file.filename,
+        sanitizedPath: writtenPath,
+      });
+    } catch (error) {
+      results.push({
+        success: false,
+        originalFilename: file.filename,
+        error: error.message,
+      });
+    }
+  }
+
+  return results;
+}
+
+interface FileToWrite {
+  dirPath: string;
+  filename: string;
+  content: string;
+}
+
+interface WriteResult {
+  success: boolean;
+  originalFilename: string;
+  sanitizedPath?: string;
+  error?: string;
+}
+```
+
+#### Agent Manager 통합
+
+```typescript
+// packages/agent-manager/src/deliverables/DeliverableCollector.ts
+
+import { safeWriteFile } from '@shared/utils/safeFileOperations';
+
+/**
+ * Agent 산출물 수집기 (파일명 정제 적용)
+ */
+export class DeliverableCollector {
+  /**
+   * Agent가 생성한 파일 수집
+   */
+  async collectDeliverables(
+    taskId: string,
+    workspacePath: string
+  ): Promise<Deliverable[]> {
+    const deliverables: Deliverable[] = [];
+
+    // Workspace 스캔
+    const files = await this.scanWorkspace(workspacePath);
+
+    for (const file of files) {
+      // 파일명 검증
+      const validation = FilenameSanitizer.validate(file.filename);
+
+      if (!validation.valid) {
+        console.error(`❌ Invalid deliverable filename: ${file.filename}`, {
+          errors: validation.errors,
+        });
+
+        // 에러 이벤트 발생
+        eventBus.emit('deliverable_error', {
+          taskId,
+          filename: file.filename,
+          errors: validation.errors,
+        });
+
+        continue; // 건너뛰기
+      }
+
+      // 경고 로깅
+      if (validation.warnings.length > 0) {
+        console.warn(`⚠️  Deliverable filename warnings:`, {
+          filename: file.filename,
+          warnings: validation.warnings,
+        });
+      }
+
+      deliverables.push({
+        path: file.path,
+        filename: file.filename,
+        size: file.size,
+        createdAt: file.createdAt,
+        validated: true,
+      });
+    }
+
+    return deliverables;
+  }
+
+  /**
+   * 파일명 자동 수정 (Agent에게 피드백)
+   */
+  async suggestFilenameFix(
+    taskId: string,
+    invalidFilename: string
+  ): Promise<string> {
+    const sanitized = FilenameSanitizer.sanitize(invalidFilename);
+
+    // Agent에게 피드백 전송
+    await this.sendFeedbackToAgent(taskId, {
+      type: 'filename_invalid',
+      message: `Invalid filename "${invalidFilename}" auto-corrected to "${sanitized}"`,
+      originalFilename: invalidFilename,
+      suggestedFilename: sanitized,
+    });
+
+    return sanitized;
+  }
+}
+
+interface Deliverable {
+  path: string;
+  filename: string;
+  size: number;
+  createdAt: Date;
+  validated: boolean;
+}
+```
+
+#### Unit Tests
+
+```typescript
+// packages/shared/tests/filenameSanitizer.test.ts
+
+import { FilenameSanitizer } from '../src/utils/filenameSanitizer';
+
+describe('FilenameSanitizer', () => {
+  describe('sanitize', () => {
+    test('replaces spaces with underscores', () => {
+      expect(FilenameSanitizer.sanitize('my file.txt')).toBe('my_file.txt');
+    });
+
+    test('removes invalid characters', () => {
+      expect(FilenameSanitizer.sanitize('file<name>.txt')).toBe('file_name_.txt');
+    });
+
+    test('removes path separators', () => {
+      expect(FilenameSanitizer.sanitize('user/data.json')).toBe('user_data.json');
+    });
+
+    test('prevents path traversal', () => {
+      expect(FilenameSanitizer.sanitize('../../etc/passwd')).toBe('._._etc_passwd');
+    });
+
+    test('handles Windows reserved names', () => {
+      expect(FilenameSanitizer.sanitize('CON.txt')).toBe('_CON.txt');
+      expect(FilenameSanitizer.sanitize('PRN')).toBe('_PRN');
+    });
+
+    test('truncates long filenames', () => {
+      const longName = 'a'.repeat(300) + '.txt';
+      const sanitized = FilenameSanitizer.sanitize(longName);
+
+      expect(Buffer.byteLength(sanitized, 'utf-8')).toBeLessThanOrEqual(255);
+    });
+
+    test('handles Unicode characters', () => {
+      expect(FilenameSanitizer.sanitize('파일명.txt')).toBe('파일명.txt');
+      expect(FilenameSanitizer.sanitize('emoji😀.txt')).toBe('emoji😀.txt');
+    });
+
+    test('throws on empty filename', () => {
+      expect(() => FilenameSanitizer.sanitize('')).toThrow('Filename cannot be empty');
+      expect(() => FilenameSanitizer.sanitize('   ')).toThrow('Filename cannot be empty');
+    });
+  });
+
+  describe('validate', () => {
+    test('accepts valid filename', () => {
+      const result = FilenameSanitizer.validate('valid_file.txt');
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    test('rejects filename with invalid characters', () => {
+      const result = FilenameSanitizer.validate('file<name>.txt');
+
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('invalid characters');
+    });
+
+    test('rejects filename with path traversal', () => {
+      const result = FilenameSanitizer.validate('../../../etc/passwd');
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('path traversal'))).toBe(true);
+    });
+
+    test('warns on spaces', () => {
+      const result = FilenameSanitizer.validate('my file.txt');
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings.some(w => w.includes('spaces'))).toBe(true);
+    });
+
+    test('warns on reserved names', () => {
+      const result = FilenameSanitizer.validate('CON.txt');
+
+      expect(result.warnings.some(w => w.includes('reserved name'))).toBe(true);
+    });
+  });
+
+  describe('generateSafeFilename', () => {
+    test('generates unique filename', () => {
+      const name1 = FilenameSanitizer.generateSafeFilename('test', 'txt');
+      const name2 = FilenameSanitizer.generateSafeFilename('test', 'txt');
+
+      expect(name1).not.toBe(name2);
+      expect(name1).toMatch(/^test_\d+_[a-z0-9]{6}\.txt$/);
+    });
+
+    test('sanitizes prefix', () => {
+      const name = FilenameSanitizer.generateSafeFilename('my file!', 'json');
+
+      expect(name).toMatch(/^my_file__\d+/);
+    });
+  });
+});
+```
+
+#### 예시 시나리오
+
+**시나리오 1: 공백 포함 파일명**
+
+```typescript
+// Agent 시도
+const filename = "my file.txt";
+
+// 정제 후
+const sanitized = FilenameSanitizer.sanitize(filename);
+// → "my_file.txt"
+```
+
+**시나리오 2: Windows 예약어**
+
+```typescript
+// Agent 시도
+const filename = "CON.txt";
+
+// 검증
+const validation = FilenameSanitizer.validate(filename);
+// → { valid: true, warnings: ["Filename matches OS reserved name: CON"] }
+
+// 정제 후
+const sanitized = FilenameSanitizer.sanitize(filename);
+// → "_CON.txt"
+```
+
+**시나리오 3: 경로 순회 시도**
+
+```typescript
+// Agent 시도 (악의적 또는 실수)
+const filename = "../../etc/passwd";
+
+// 검증
+const validation = FilenameSanitizer.validate(filename);
+// → { valid: false, errors: ["Filename contains path traversal sequence (..)"] }
+
+// 정제 후
+const sanitized = FilenameSanitizer.sanitize(filename);
+// → "._._etc_passwd"
+```
+
+**시나리오 4: 너무 긴 파일명**
+
+```typescript
+// Agent 시도
+const filename = "very_long_filename_".repeat(20) + ".txt";
+// → 300+ bytes
+
+// 정제 후
+const sanitized = FilenameSanitizer.sanitize(filename);
+// → 255 bytes 이하로 자동 잘림
+```
+
+#### 모니터링 및 메트릭
+
+```typescript
+/**
+ * 파일명 정제 메트릭
+ */
+class FilenameSanitizationMetrics {
+  /**
+   * 정제 이벤트 추적
+   */
+  trackSanitization(original: string, sanitized: string): void {
+    if (original !== sanitized) {
+      metrics.increment('filename.sanitized', {
+        changed: 'yes',
+      });
+
+      // 상세 로그
+      logger.info('Filename sanitized', {
+        original,
+        sanitized,
+        diff: this.calculateDiff(original, sanitized),
+      });
+    }
+  }
+
+  /**
+   * 검증 실패 추적
+   */
+  trackValidationFailure(filename: string, errors: string[]): void {
+    metrics.increment('filename.validation.failed', {
+      errorCount: errors.length,
+    });
+
+    logger.warn('Filename validation failed', {
+      filename,
+      errors,
+    });
+  }
+
+  /**
+   * OS 예약어 감지 추적
+   */
+  trackReservedName(filename: string): void {
+    metrics.increment('filename.reserved_name_detected');
+
+    logger.warn('OS reserved name detected', { filename });
+  }
+}
+```
+
+#### 권장 설정
+
+**프로덕션**:
+- 항상 파일명 정제 활성화
+- 검증 실패 시 에러 발생 (생성 차단)
+- 모든 정제 이벤트 로깅
+
+**개발**:
+- 검증 실패 시 경고만 출력 (생성 허용)
+- 정제 전/후 비교 로깅
+
+**OS별 추가 고려사항**:
+- **Windows**: 예약어, 대소문자 무시
+- **Linux**: 숨김 파일 (`.`로 시작)
+- **macOS**: 정규화된 Unicode (NFC)
+
+---
+
 **Phase 3: 구현 - 수행 사항**:
 1. 수정 계획 정확히 따르기
 2. 점진적으로 변경 (한 번에 하나의 컴포넌트)
@@ -1081,11 +1730,207 @@ workflow-project/
 
 **공식 검증 없음** - custom 태스크는 구조화된 산출물이나 페이즈가 없습니다.
 
-품질 평가 기준:
-- 응답에 대한 사용자 만족도
-- 제공된 정보의 정확성
-- 답변의 유용성
-- 솔루션의 완전성
+#### 품질 평가 기준
+
+Type-D 작업은 구조화된 Phase가 없으므로, 다음 5가지 차원에서 품질을 평가합니다:
+
+1. **Relevance (관련성)**: 응답이 사용자의 질문/요청을 직접 다루는가?
+2. **Completeness (완전성)**: 답변이 장황하지 않으면서도 충분히 상세한가?
+3. **Accuracy (정확성)**: 제공된 정보가 기술적으로 정확한가?
+4. **Clarity (명확성)**: 응답이 이해하기 쉬운가?
+5. **Actionability (실행 가능성)**: 사용자가 응답을 바탕으로 행동을 취할 수 있는가?
+
+#### 품질 평가 프로세스
+
+- **자동 검증 없음**: Type-D는 검증 에이전트를 거치지 않음
+- **사용자 만족도 중심**: 최종 품질 기준은 사용자 만족도
+- **암묵적 신호 추적**: 플랫폼은 다음 신호를 모니터링
+  - 후속 질문 발생 (불명확한 답변 지표)
+  - 작업 중단율 (불만족 지표)
+  - 대화 길이 (효율성 지표)
+
+#### TypeScript 구현 예시
+
+```typescript
+// packages/core/src/evaluation/CustomTaskEvaluator.ts
+
+/**
+ * Type-D (custom) 작업의 품질 평가기
+ */
+export class CustomTaskEvaluator {
+  /**
+   * 응답 품질 점수 계산 (1-5)
+   */
+  calculateQualityScore(response: string, userPrompt: string): QualityScore {
+    return {
+      relevance: this.assessRelevance(response, userPrompt),
+      completeness: this.assessCompleteness(response),
+      accuracy: this.assessAccuracy(response),
+      clarity: this.assessClarity(response),
+      actionability: this.assessActionability(response),
+      overall: 0, // 계산 후 채워짐
+    };
+  }
+
+  /**
+   * 관련성 평가 (키워드 매칭 기반)
+   */
+  private assessRelevance(response: string, userPrompt: string): number {
+    const promptKeywords = this.extractKeywords(userPrompt);
+    const responseKeywords = this.extractKeywords(response);
+
+    const matchCount = promptKeywords.filter(kw =>
+      responseKeywords.includes(kw)
+    ).length;
+
+    const relevanceRatio = matchCount / promptKeywords.length;
+    return Math.min(5, Math.round(relevanceRatio * 5));
+  }
+
+  /**
+   * 완전성 평가 (길이 및 구조 기반)
+   */
+  private assessCompleteness(response: string): number {
+    const hasCodeExamples = /```/.test(response);
+    const hasExplanation = response.length > 200;
+    const hasSections = response.split('\n\n').length > 2;
+
+    let score = 2; // 기본 점수
+    if (hasCodeExamples) score += 1;
+    if (hasExplanation) score += 1;
+    if (hasSections) score += 1;
+
+    return Math.min(5, score);
+  }
+
+  /**
+   * 명확성 평가 (가독성 기반)
+   */
+  private assessClarity(response: string): number {
+    // 문장 길이 분석 (짧을수록 명확)
+    const sentences = response.split(/[.!?]+/).filter(s => s.trim());
+    const avgSentenceLength = sentences.reduce((sum, s) =>
+      sum + s.split(' ').length, 0
+    ) / sentences.length;
+
+    // 평균 문장 길이 15-25 단어가 이상적
+    if (avgSentenceLength < 10) return 3; // 너무 짧음
+    if (avgSentenceLength <= 25) return 5; // 이상적
+    if (avgSentenceLength <= 35) return 4;
+    return 3; // 너무 김
+  }
+
+  /**
+   * 실행 가능성 평가 (행동 유도 요소)
+   */
+  private assessActionability(response: string): number {
+    const hasSteps = /\d+\.|step \d+/i.test(response);
+    const hasCommands = /```bash|```sh|npm |git /.test(response);
+    const hasLinks = /https?:\/\//.test(response);
+
+    let score = 2;
+    if (hasSteps) score += 1;
+    if (hasCommands) score += 1;
+    if (hasLinks) score += 1;
+
+    return Math.min(5, score);
+  }
+
+  private extractKeywords(text: string): string[] {
+    // 간단한 키워드 추출 (불용어 제거)
+    const stopwords = new Set(['the', 'a', 'an', 'and', 'or', 'but']);
+    return text.toLowerCase()
+      .split(/\s+/)
+      .filter(word => word.length > 3 && !stopwords.has(word));
+  }
+}
+
+interface QualityScore {
+  relevance: number;      // 1-5
+  completeness: number;   // 1-5
+  accuracy: number;       // 1-5
+  clarity: number;        // 1-5
+  actionability: number;  // 1-5
+  overall: number;        // 평균
+}
+```
+
+#### 사용자 피드백 수집
+
+```typescript
+// packages/claude-code-server/src/app/api/tasks/[id]/feedback/route.ts
+
+/**
+ * Type-D 작업에 대한 사용자 피드백 수집
+ */
+export async function POST(req: Request) {
+  const { taskId } = await req.json();
+  const { rating, comment } = await req.json();
+
+  // 1-5 별점 저장
+  await prisma.taskFeedback.create({
+    data: {
+      taskId,
+      rating,        // 1-5
+      comment,       // 선택 사항
+      timestamp: new Date(),
+    },
+  });
+
+  // 메트릭 업데이트
+  await updateQualityMetrics(taskId, rating);
+
+  return Response.json({ success: true });
+}
+```
+
+#### 추적 메트릭
+
+플랫폼은 다음 메트릭을 모니터링하여 Type-D 품질을 평가합니다:
+
+```typescript
+interface CustomTaskMetrics {
+  // 사용자 만족도
+  userRating: number;              // 1-5 평균 별점
+  thumbsUpRate: number;            // 👍 비율 (0-1)
+
+  // 암묵적 신호
+  followUpQuestionRate: number;    // 후속 질문 발생 비율
+  taskAbandonmentRate: number;     // 작업 중단 비율
+  avgConversationLength: number;   // 평균 대화 턴 수
+
+  // 응답 품질
+  avgResponseLength: number;       // 평균 응답 길이 (chars)
+  codeExampleRate: number;         // 코드 예제 포함 비율
+  linkInclusionRate: number;       // 링크 포함 비율
+}
+```
+
+#### 예시 시나리오
+
+**좋은 응답 예시** ("Explain WebSockets"):
+- ✅ WebSocket의 개념 설명
+- ✅ HTTP와의 차이점 비교
+- ✅ 코드 예제 포함
+- ✅ 사용 사례 제시
+- ✅ 추가 학습 자료 링크
+- **Quality Score**: Relevance 5, Completeness 5, Clarity 5 → Overall 4.8
+
+**나쁜 응답 예시** ("Debug this error"):
+- ❌ 에러 메시지만 반복
+- ❌ 구체적인 해결책 없음
+- ❌ 후속 질문 3회 필요
+- **Quality Score**: Relevance 3, Completeness 2, Actionability 1 → Overall 2.4
+
+#### 품질 개선 권장사항
+
+Type-D 작업의 품질을 높이기 위한 Sub-Agent 가이드라인:
+
+1. **구체적인 답변**: 추상적인 설명보다 구체적인 예시 제공
+2. **코드 포함**: 가능한 경우 실행 가능한 코드 예제 포함
+3. **단계별 설명**: 복잡한 주제는 단계별로 분해
+4. **관련 링크**: 공식 문서나 신뢰할 수 있는 자료 링크
+5. **후속 질문 최소화**: 한 번의 응답으로 충분한 정보 제공
 
 ### 자동 재작업
 
@@ -1597,3 +2442,698 @@ idle → running → waiting_review → running → completed
 **서브 에이전트를 위한**: 항상 태스크 타입을 확인하고 해당 워크플로우를 정확히 따르세요. 워크플로우를 혼합하지 마세요!
 
 **사용자를 위한**: 최상의 결과를 얻기 위해 태스크에 적합한 워크플로우 타입을 선택하세요.
+
+---
+
+## 동시성 관리 (Concurrency Management)
+
+### 동시 파일 쓰기 방지 (Concurrent File Write Prevention)
+
+여러 Sub-Agent가 동시에 실행될 때 파일 시스템 충돌을 방지하는 전략입니다.
+
+#### 문제 상황
+
+```
+Agent A: docs/planning/01_idea.md 작성 중
+Agent B: docs/planning/01_idea.md 작성 중
+→ Race condition: 마지막 쓰기가 이전 쓰기를 덮어씀
+```
+
+#### 방어 전략
+
+**1. Workspace 격리 (권장)**
+
+각 Task는 독립된 workspace에서 실행:
+
+```typescript
+// packages/agent-manager/src/WorkspaceManager.ts
+export class WorkspaceManager {
+  /**
+   * Task별 독립된 workspace 생성
+   */
+  async createWorkspace(taskId: string): Promise<string> {
+    const workspaceRoot = path.join(
+      config.outputDirectory,
+      taskId  // ← Task ID별로 디렉토리 분리
+    );
+
+    await fs.mkdir(workspaceRoot, { recursive: true });
+    await fs.chmod(workspaceRoot, 0o755);
+
+    return workspaceRoot;
+  }
+
+  /**
+   * Agent 프로세스에 workspace 제한
+   */
+  async spawnAgentWithWorkspace(taskId: string): Promise<ChildProcess> {
+    const workspaceRoot = await this.createWorkspace(taskId);
+
+    const agentProcess = spawn('claude', ['chat'], {
+      cwd: workspaceRoot,  // ← 작업 디렉토리 제한
+      env: {
+        ...process.env,
+        WORKSPACE_ROOT: workspaceRoot,
+        ALLOWED_PATHS: workspaceRoot,  // ← 접근 가능 경로
+      },
+    });
+
+    return agentProcess;
+  }
+}
+```
+
+**장점**: 완전한 격리, 구현 간단, 안전한 병렬 실행
+**단점**: 디스크 공간 사용량 증가
+
+**2. 파일 잠금 (File Locking)**
+
+```typescript
+import lockfile from 'proper-lockfile';
+
+export class FileLockManager {
+  async safeWriteFile(
+    filePath: string,
+    content: string,
+    taskId: string
+  ): Promise<void> {
+    let release: (() => Promise<void>) | null = null;
+
+    try {
+      // 1. 잠금 획득
+      release = await lockfile.lock(filePath, {
+        retries: { retries: 10, minTimeout: 100, maxTimeout: 1000 },
+      });
+
+      // 2. 파일 쓰기
+      await fs.writeFile(filePath, content, 'utf-8');
+      console.log(`✅ File written by ${taskId}: ${filePath}`);
+    } finally {
+      // 3. 잠금 해제
+      if (release) await release();
+    }
+  }
+}
+```
+
+**3. 원자적 쓰기 (Atomic Write)**
+
+```typescript
+export async function atomicWriteFile(
+  filePath: string,
+  content: string
+): Promise<void> {
+  const tempPath = `${filePath}.${uuidv4()}.tmp`;
+
+  try {
+    // 1. 임시 파일에 쓰기
+    await fs.writeFile(tempPath, content, 'utf-8');
+
+    // 2. 원자적으로 rename (POSIX 보장)
+    await fs.rename(tempPath, filePath);
+  } catch (error) {
+    await fs.unlink(tempPath).catch(() => {});
+    throw error;
+  }
+}
+```
+
+**권장 조합**: Workspace 격리 + 원자적 쓰기
+
+### 동시 리뷰 생성 및 승인 처리
+
+여러 Agent가 동시에 Phase를 완료할 때 리뷰 생성 및 승인 프로세스를 순차적으로 처리합니다.
+
+#### 문제 상황
+
+```
+Task A: Phase 1 완료 → 리뷰 생성 요청
+Task B: Phase 1 완료 → 리뷰 생성 요청
+→ 동시에 Verification Agent 실행 → 리소스 경쟁
+```
+
+#### 해결 전략
+
+**1. 리뷰 생성 큐**
+
+```typescript
+// packages/agent-manager/src/ReviewQueue.ts
+import PQueue from 'p-queue';
+
+export class ReviewQueueManager {
+  private verificationQueue = new PQueue({ concurrency: 2 }); // 최대 2개 동시 검증
+  private reviewCreationQueue = new PQueue({ concurrency: 1 }); // 리뷰 생성은 순차
+
+  /**
+   * Phase 완료 처리 (큐 기반)
+   */
+  async handlePhaseComplete(
+    taskId: string,
+    phase: number
+  ): Promise<void> {
+    console.log(`📋 Queueing review for Task ${taskId} Phase ${phase}`);
+
+    return this.verificationQueue.add(async () => {
+      try {
+        // 1. Verification Agent 실행
+        const verificationResult = await this.runVerification(taskId, phase);
+
+        if (verificationResult.passed) {
+          // 2. 리뷰 생성 (순차 처리)
+          await this.reviewCreationQueue.add(async () => {
+            await this.createReview(taskId, phase, verificationResult);
+          });
+        } else {
+          // 3. 재작업 처리
+          await this.handleRework(taskId, phase, verificationResult);
+        }
+      } catch (error) {
+        console.error(`❌ Review processing failed:`, error);
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Verification Agent 실행
+   */
+  private async runVerification(
+    taskId: string,
+    phase: number
+  ): Promise<VerificationResult> {
+    console.log(`🔍 Running verification for Task ${taskId} Phase ${phase}`);
+
+    // Verification Agent 생성 (별도 프로세스)
+    const verifier = await this.spawnVerificationAgent(taskId, phase);
+
+    return new Promise((resolve, reject) => {
+      let output = '';
+
+      verifier.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      verifier.on('close', (code) => {
+        if (code === 0) {
+          resolve(this.parseVerificationOutput(output));
+        } else {
+          reject(new Error(`Verification failed with code ${code}`));
+        }
+      });
+    });
+  }
+
+  /**
+   * 리뷰 생성 (DB 트랜잭션)
+   */
+  private async createReview(
+    taskId: string,
+    phase: number,
+    verification: VerificationResult
+  ): Promise<Review> {
+    return await db.$transaction(async (tx) => {
+      // 1. 기존 리뷰 확인 (중복 방지)
+      const existing = await tx.review.findFirst({
+        where: { taskId, phase, status: 'pending' },
+      });
+
+      if (existing) {
+        console.warn(`⚠️  Review already exists for Task ${taskId} Phase ${phase}`);
+        return existing;
+      }
+
+      // 2. 산출물 수집
+      const deliverables = await this.collectDeliverables(taskId, phase);
+
+      // 3. 리뷰 생성
+      const review = await tx.review.create({
+        data: {
+          taskId,
+          phase,
+          status: 'pending',
+          deliverables,
+          verificationReport: verification.report,
+          createdAt: new Date(),
+        },
+      });
+
+      // 4. Task 상태 업데이트
+      await tx.task.update({
+        where: { id: taskId },
+        data: { status: 'review' },
+      });
+
+      console.log(`✅ Review created: ${review.id}`);
+      return review;
+    });
+  }
+}
+```
+
+**2. 리뷰 승인 처리 (Optimistic Locking)**
+
+```typescript
+export class ReviewApprovalManager {
+  /**
+   * 리뷰 승인 (낙관적 잠금)
+   */
+  async approveReview(
+    reviewId: string,
+    userId: string,
+    comment?: string
+  ): Promise<Review> {
+    return await db.$transaction(async (tx) => {
+      // 1. 버전 체크하며 리뷰 조회
+      const review = await tx.review.findUnique({
+        where: { id: reviewId },
+        select: { id: true, status: true, version: true, taskId: true, phase: true },
+      });
+
+      if (!review) {
+        throw new Error(`Review not found: ${reviewId}`);
+      }
+
+      if (review.status !== 'pending') {
+        throw new Error(`Review already ${review.status}`);
+      }
+
+      // 2. 승인 처리 (버전 증가)
+      const updated = await tx.review.update({
+        where: {
+          id: reviewId,
+          version: review.version, // ← 낙관적 잠금
+        },
+        data: {
+          status: 'approved',
+          approvedBy: userId,
+          approvedAt: new Date(),
+          comment,
+          version: { increment: 1 },
+        },
+      });
+
+      // 3. 다음 Phase 시작
+      await this.startNextPhase(review.taskId, review.phase + 1);
+
+      return updated;
+    });
+  }
+
+  /**
+   * 변경 요청 처리
+   */
+  async requestChanges(
+    reviewId: string,
+    userId: string,
+    feedback: string
+  ): Promise<Review> {
+    return await db.$transaction(async (tx) => {
+      const review = await tx.review.findUnique({
+        where: { id: reviewId },
+        select: { id: true, status: true, version: true, taskId: true, phase: true },
+      });
+
+      if (!review || review.status !== 'pending') {
+        throw new Error('Invalid review state');
+      }
+
+      // 버전 체크하며 업데이트
+      const updated = await tx.review.update({
+        where: {
+          id: reviewId,
+          version: review.version,
+        },
+        data: {
+          status: 'changes_requested',
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          feedback,
+          version: { increment: 1 },
+        },
+      });
+
+      // Agent에 피드백 전달 및 재작업 시작
+      await this.resumeAgentWithFeedback(review.taskId, feedback);
+
+      return updated;
+    });
+  }
+}
+```
+
+**3. 동시 승인 충돌 처리**
+
+```typescript
+// 여러 사용자가 동시에 승인하려는 경우
+try {
+  await approveReview(reviewId, userId, comment);
+} catch (error) {
+  if (error.code === 'P2025') {
+    // Prisma: Record not found or version mismatch
+    throw new ConflictError('Review was already processed by another user');
+  }
+  throw error;
+}
+```
+
+**실행 흐름**:
+
+```
+Task A Phase 1 완료
+  → Verification Queue에 추가 (위치 1)
+  → Verification Agent 실행 (2개 동시 가능)
+  → 검증 통과
+  → Review Creation Queue에 추가 (순차 처리)
+  → DB 트랜잭션으로 리뷰 생성
+  → 사용자에게 알림
+
+Task B Phase 1 완료 (동시 발생)
+  → Verification Queue에 추가 (위치 2)
+  → Task A 검증과 병렬 실행
+  → 검증 통과
+  → Review Creation Queue 대기 (Task A 완료 후)
+  → DB 트랜잭션으로 리뷰 생성
+  → 사용자에게 알림
+```
+
+**성능 최적화**:
+- Verification Agent는 병렬 실행 (concurrency: 2)
+- Review 생성은 순차 실행 (DB 충돌 방지)
+- 낙관적 잠금으로 동시 승인 방지
+
+---
+
+## 리뷰 타임아웃 정책
+
+### 개요
+
+리뷰가 장기간 승인되지 않고 대기 상태로 남아있는 경우, 자동 리마인더 및 에스컬레이션 정책을 통해 워크플로우 정체를 방지합니다.
+
+### 타임아웃 단계
+
+| 경과 시간 | 액션 | 실행 주체 | 설명 |
+|----------|------|----------|------|
+| 24시간 | 첫 번째 리마인더 | 시스템 자동 | 이메일/알림: "리뷰 대기 중" |
+| 48시간 | 두 번째 리마인더 | 시스템 자동 | 이메일/알림: "긴급 - 리뷰 필요" |
+| 72시간 | 에스컬레이션 | 시스템 자동 | 관리자에게 알림, 대체 검토자 배정 옵션 |
+| 168시간 (7일) | 자동 승인 옵션 | 관리자 선택 | 설정 활성화 시 자동 승인 |
+
+### 구현
+
+#### 1. 리뷰 생성 시 타이머 등록
+
+```typescript
+// packages/agent-manager/src/ReviewQueue.ts
+
+export class ReviewTimeoutManager {
+  private timeouts = new Map<string, NodeJS.Timeout>();
+
+  /**
+   * 리뷰 생성 시 타임아웃 타이머 등록
+   */
+  registerReviewTimeout(reviewId: string, createdAt: Date): void {
+    const now = Date.now();
+    const created = createdAt.getTime();
+
+    // 24시간 후 첫 번째 리마인더
+    const reminder1Delay = Math.max(0, created + 24 * 60 * 60 * 1000 - now);
+    setTimeout(() => this.sendReminder(reviewId, 1), reminder1Delay);
+
+    // 48시간 후 두 번째 리마인더
+    const reminder2Delay = Math.max(0, created + 48 * 60 * 60 * 1000 - now);
+    setTimeout(() => this.sendReminder(reviewId, 2), reminder2Delay);
+
+    // 72시간 후 에스컬레이션
+    const escalationDelay = Math.max(0, created + 72 * 60 * 60 * 1000 - now);
+    setTimeout(() => this.escalateReview(reviewId), escalationDelay);
+
+    // 7일 후 자동 승인 (설정 활성화 시)
+    const autoApproveDelay = Math.max(0, created + 7 * 24 * 60 * 60 * 1000 - now);
+    const timeout = setTimeout(() => this.autoApproveIfEnabled(reviewId), autoApproveDelay);
+
+    this.timeouts.set(reviewId, timeout);
+
+    console.log(`⏰ Review timeout timers registered for ${reviewId}`);
+  }
+
+  /**
+   * 리마인더 전송
+   */
+  private async sendReminder(reviewId: string, attempt: number): Promise<void> {
+    const review = await db.review.findUnique({
+      where: { id: reviewId },
+      include: { task: true },
+    });
+
+    if (!review || review.status !== 'pending') {
+      return; // 이미 승인/거부됨
+    }
+
+    const urgency = attempt === 1 ? 'normal' : 'high';
+    const message = attempt === 1
+      ? `리뷰가 ${attempt * 24}시간 동안 대기 중입니다.`
+      : `긴급: 리뷰가 ${attempt * 24}시간 동안 대기 중입니다!`;
+
+    await this.notificationService.send({
+      type: 'review_reminder',
+      reviewId,
+      taskId: review.taskId,
+      phase: review.phase,
+      urgency,
+      message,
+      recipients: [review.task.createdBy], // 태스크 생성자
+    });
+
+    // DB에 리마인더 기록
+    await db.reviewReminder.create({
+      data: {
+        reviewId,
+        attempt,
+        sentAt: new Date(),
+      },
+    });
+
+    console.log(`📧 Review reminder #${attempt} sent for ${reviewId}`);
+  }
+
+  /**
+   * 에스컬레이션 (관리자에게 알림)
+   */
+  private async escalateReview(reviewId: string): Promise<void> {
+    const review = await db.review.findUnique({
+      where: { id: reviewId },
+      include: { task: true },
+    });
+
+    if (!review || review.status !== 'pending') {
+      return;
+    }
+
+    // 관리자에게 알림
+    await this.notificationService.send({
+      type: 'review_escalation',
+      reviewId,
+      taskId: review.taskId,
+      phase: review.phase,
+      urgency: 'critical',
+      message: `리뷰가 72시간 동안 대기 중입니다. 에스컬레이션 필요.`,
+      recipients: await this.getAdminUsers(),
+    });
+
+    // 대체 검토자 옵션 제공
+    await db.review.update({
+      where: { id: reviewId },
+      data: {
+        escalated: true,
+        escalatedAt: new Date(),
+      },
+    });
+
+    console.log(`🚨 Review escalated: ${reviewId}`);
+  }
+
+  /**
+   * 자동 승인 (설정 활성화 시)
+   */
+  private async autoApproveIfEnabled(reviewId: string): Promise<void> {
+    const settings = await db.settings.findFirst({
+      where: { key: 'review_auto_approve_after_7_days' },
+    });
+
+    if (settings?.value !== 'true') {
+      console.log(`⏭️  Auto-approve disabled for ${reviewId}`);
+      return;
+    }
+
+    const review = await db.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review || review.status !== 'pending') {
+      return;
+    }
+
+    // 자동 승인 실행
+    await db.$transaction(async (tx) => {
+      await tx.review.update({
+        where: { id: reviewId },
+        data: {
+          status: 'approved',
+          approvedBy: 'system',
+          approvedAt: new Date(),
+          comment: '7일 타임아웃 후 자동 승인됨',
+          autoApproved: true,
+        },
+      });
+
+      // 다음 Phase 시작
+      await this.startNextPhase(review.taskId, review.phase + 1);
+    });
+
+    // 사용자에게 알림
+    await this.notificationService.send({
+      type: 'review_auto_approved',
+      reviewId,
+      taskId: review.taskId,
+      phase: review.phase,
+      message: '리뷰가 7일 타임아웃으로 인해 자동 승인되었습니다.',
+    });
+
+    console.log(`✅ Review auto-approved after 7 days: ${reviewId}`);
+  }
+
+  /**
+   * 리뷰 승인/거부 시 타임아웃 취소
+   */
+  cancelTimeout(reviewId: string): void {
+    const timeout = this.timeouts.get(reviewId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.timeouts.delete(reviewId);
+      console.log(`⏹️  Timeout cancelled for ${reviewId}`);
+    }
+  }
+}
+```
+
+#### 2. API 엔드포인트
+
+```typescript
+// app/api/reviews/[id]/route.ts
+
+/**
+ * PATCH /api/reviews/:id/approve
+ * 리뷰 승인 시 타임아웃 취소
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const { action, comment } = await request.json();
+  const reviewId = params.id;
+
+  if (action === 'approve') {
+    await reviewApprovalManager.approveReview(reviewId, userId, comment);
+
+    // 타임아웃 타이머 취소
+    reviewTimeoutManager.cancelTimeout(reviewId);
+
+    return Response.json({ success: true });
+  }
+
+  if (action === 'reject') {
+    await reviewApprovalManager.requestChanges(reviewId, userId, comment);
+
+    // 타임아웃 타이머 취소
+    reviewTimeoutManager.cancelTimeout(reviewId);
+
+    return Response.json({ success: true });
+  }
+}
+```
+
+#### 3. 웹 UI 설정
+
+```typescript
+// app/settings/page.tsx
+
+export default function SettingsPage() {
+  const [autoApproveEnabled, setAutoApproveEnabled] = useState(false);
+
+  return (
+    <div>
+      <h2>리뷰 타임아웃 설정</h2>
+
+      <label>
+        <input
+          type="checkbox"
+          checked={autoApproveEnabled}
+          onChange={(e) => {
+            setAutoApproveEnabled(e.target.checked);
+            updateSettings('review_auto_approve_after_7_days', e.target.checked);
+          }}
+        />
+        7일 후 자동 승인 활성화
+      </label>
+
+      <p className="text-sm text-gray-600">
+        활성화 시, 7일 동안 승인되지 않은 리뷰가 자동으로 승인됩니다.
+        비활성화 시, 무한정 대기합니다.
+      </p>
+    </div>
+  );
+}
+```
+
+### 모니터링
+
+```typescript
+// 리뷰 타임아웃 통계 조회
+export async function getReviewTimeoutStats() {
+  const stats = await db.review.groupBy({
+    by: ['status'],
+    _count: true,
+    where: {
+      createdAt: {
+        lt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24시간 이상
+      },
+    },
+  });
+
+  return {
+    pendingOver24h: stats.find(s => s.status === 'pending')?._count || 0,
+    autoApproved: await db.review.count({
+      where: { autoApproved: true },
+    }),
+  };
+}
+```
+
+### 주의사항
+
+**타임아웃 타이머 복구**:
+- 서버 재시작 시 타이머가 사라지므로, 시작 시 pending 상태의 리뷰에 대해 타이머 재등록 필요
+
+```typescript
+// packages/agent-manager/src/index.ts
+
+async function restoreReviewTimeouts() {
+  const pendingReviews = await db.review.findMany({
+    where: { status: 'pending' },
+  });
+
+  for (const review of pendingReviews) {
+    reviewTimeoutManager.registerReviewTimeout(review.id, review.createdAt);
+  }
+
+  console.log(`✅ Restored ${pendingReviews.length} review timeout timers`);
+}
+
+// 서버 시작 시 실행
+await restoreReviewTimeouts();
+```
+
+---
+
+**최종 업데이트**: 2024-02-15
+**버전**: 1.1

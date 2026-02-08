@@ -775,6 +775,346 @@ async function readGuide(path: string): Promise<string> {
 
 ---
 
+## Agent Crash 타입별 처리
+
+### 개요
+
+Agent는 다양한 이유로 비정상 종료될 수 있습니다. 각 크래시 타입에 따라 적절한 복구 전략이 필요합니다.
+
+### Crash 타입별 처리
+
+#### 1. OOM (Out of Memory)
+
+**원인**: Agent 프로세스가 메모리 제한 초과
+
+**증상**:
+```
+Agent process exited with code: null
+Signal: SIGKILL
+Error: Killed
+```
+
+**감지**:
+```typescript
+// packages/agent-manager/src/ProcessManager.ts
+
+agentProcess.on('exit', (code, signal) => {
+  if (signal === 'SIGKILL' && code === null) {
+    console.error('🔴 Agent killed by OOM');
+    this.handleOOMCrash(taskId);
+  }
+});
+```
+
+**복구 전략**:
+
+```typescript
+async handleOOMCrash(taskId: string): Promise<void> {
+  console.log('💾 Creating emergency checkpoint before OOM recovery');
+
+  // 1. 마지막 알려진 상태에서 Checkpoint 생성 시도
+  const lastKnownState = this.agentStates.get(taskId);
+  if (lastKnownState) {
+    await this.checkpointManager.createEmergencyCheckpoint(taskId, lastKnownState);
+  }
+
+  // 2. 메모리 제한 증가하여 재시작
+  const memoryLimit = this.getMemoryLimit(taskId);
+  const newLimit = Math.min(memoryLimit * 1.5, 8192); // 최대 8GB
+
+  console.log(`📈 Increasing memory limit: ${memoryLimit}MB → ${newLimit}MB`);
+
+  await db.task.update({
+    where: { id: taskId },
+    data: {
+      status: 'failed',
+      error: 'OOM - Memory limit exceeded',
+      metadata: {
+        crashType: 'OOM',
+        previousMemoryLimit: memoryLimit,
+        newMemoryLimit: newLimit,
+      },
+    },
+  });
+
+  // 3. 사용자에게 알림 및 재시작 옵션 제공
+  await this.notificationService.send({
+    type: 'agent_oom',
+    taskId,
+    message: `Agent ran out of memory (${memoryLimit}MB). Restart with ${newLimit}MB?`,
+    actions: [
+      { label: 'Restart with more memory', action: 'restart_with_increased_memory' },
+      { label: 'Cancel task', action: 'cancel_task' },
+    ],
+  });
+}
+```
+
+**예방 조치**:
+```typescript
+// Agent 생성 시 메모리 제한 설정
+const agentProcess = spawn('claude', args, {
+  env: {
+    ...process.env,
+    NODE_OPTIONS: `--max-old-space-size=${memoryLimitMB}`,
+  },
+});
+
+// 메모리 사용량 모니터링
+setInterval(() => {
+  const memUsage = process.memoryUsage();
+  if (memUsage.heapUsed > memoryLimitMB * 0.9 * 1024 * 1024) {
+    console.warn('⚠️  Agent approaching memory limit');
+    this.createCheckpoint(taskId); // 사전 Checkpoint
+  }
+}, 30000); // 30초마다
+```
+
+#### 2. Timeout (Phase 타임아웃)
+
+**원인**: Phase가 예상 시간을 초과하여 실행
+
+**증상**:
+```
+Phase 1 running for 3 hours (expected: 30 minutes)
+```
+
+**감지**:
+```typescript
+export class PhaseTimeoutMonitor {
+  private timeouts = new Map<string, NodeJS.Timeout>();
+
+  startPhaseTimer(taskId: string, phase: number, timeoutMs: number): void {
+    const timeout = setTimeout(() => {
+      this.handlePhaseTimeout(taskId, phase);
+    }, timeoutMs);
+
+    this.timeouts.set(`${taskId}:${phase}`, timeout);
+  }
+
+  private async handlePhaseTimeout(taskId: string, phase: number): Promise<void> {
+    console.warn(`⏰ Phase ${phase} timeout for task ${taskId}`);
+
+    // 1. Agent 일시중지
+    await this.pauseAgent(taskId);
+
+    // 2. Checkpoint 생성
+    await this.checkpointManager.createCheckpoint(taskId, 'phase_timeout');
+
+    // 3. 사용자에게 알림
+    await this.notificationService.send({
+      type: 'phase_timeout',
+      taskId,
+      phase,
+      message: `Phase ${phase}가 예상 시간을 초과했습니다. 계속 실행하시겠습니까?`,
+      actions: [
+        { label: 'Continue (extend timeout)', action: 'extend_timeout' },
+        { label: 'Stop and review', action: 'stop_for_review' },
+        { label: 'Cancel task', action: 'cancel_task' },
+      ],
+    });
+
+    // 4. DB 업데이트
+    await db.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'paused',
+        metadata: {
+          pauseReason: 'phase_timeout',
+          phase,
+          duration: Date.now() - this.getPhaseStartTime(taskId, phase),
+        },
+      },
+    });
+  }
+}
+```
+
+**Phase별 타임아웃 설정**:
+```typescript
+const PHASE_TIMEOUTS = {
+  // Phase-A (create_app)
+  'create_app': {
+    1: 30 * 60 * 1000,  // Phase 1 (Planning): 30분
+    2: 20 * 60 * 1000,  // Phase 2 (Design): 20분
+    3: 60 * 60 * 1000,  // Phase 3 (Development): 60분
+    4: 15 * 60 * 1000,  // Phase 4 (Testing): 15분
+  },
+  // Phase-B (modify_app)
+  'modify_app': {
+    1: 20 * 60 * 1000,  // Phase 1 (Analysis): 20분
+    2: 15 * 60 * 1000,  // Phase 2 (Planning): 15분
+    3: 45 * 60 * 1000,  // Phase 3 (Implementation): 45분
+    4: 15 * 60 * 1000,  // Phase 4 (Testing): 15분
+  },
+  // Phase-C (workflow)
+  'workflow': {
+    1: 15 * 60 * 1000,
+    2: 15 * 60 * 1000,
+    3: 30 * 60 * 1000,
+    4: 10 * 60 * 1000,
+  },
+};
+
+function getPhaseTimeout(taskType: string, phase: number): number {
+  return PHASE_TIMEOUTS[taskType]?.[phase] || 30 * 60 * 1000; // 기본 30분
+}
+```
+
+**사용자 응답 처리**:
+```typescript
+// API: POST /api/tasks/:id/timeout-action
+export async function POST(req: Request, { params }: { params: { id: string } }) {
+  const { action } = await req.json();
+  const taskId = params.id;
+
+  switch (action) {
+    case 'extend_timeout':
+      // 타임아웃 연장 (2배)
+      const currentTimeout = getPhaseTimeout(task.type, task.currentPhase);
+      phaseTimeoutMonitor.startPhaseTimer(taskId, task.currentPhase, currentTimeout * 2);
+      await resumeAgent(taskId);
+      break;
+
+    case 'stop_for_review':
+      // 현재 상태에서 리뷰 생성
+      await createReviewFromCurrentState(taskId);
+      break;
+
+    case 'cancel_task':
+      await cancelTask(taskId);
+      break;
+  }
+
+  return Response.json({ success: true });
+}
+```
+
+#### 3. SIGKILL (강제 종료)
+
+**원인**: 시스템 또는 사용자가 프로세스 강제 종료
+
+**증상**:
+```
+Agent process killed with SIGKILL
+No graceful shutdown
+```
+
+**복구**:
+```typescript
+agentProcess.on('exit', (code, signal) => {
+  if (signal === 'SIGKILL') {
+    console.error('💀 Agent killed forcefully (SIGKILL)');
+
+    // 마지막 Checkpoint에서 복구
+    this.recoverFromLastCheckpoint(taskId);
+
+    // 사용자에게 알림
+    this.notifyForcefulTermination(taskId);
+  }
+});
+
+async recoverFromLastCheckpoint(taskId: string): Promise<void> {
+  const lastCheckpoint = await this.checkpointManager.getLatestCheckpoint(taskId);
+
+  if (!lastCheckpoint) {
+    console.error('❌ No checkpoint found for recovery');
+    await this.failTask(taskId, 'No checkpoint available for recovery');
+    return;
+  }
+
+  console.log(`♻️  Recovering from checkpoint: ${lastCheckpoint.id}`);
+
+  // Checkpoint에서 복구
+  await this.checkpointManager.restoreFromCheckpoint(taskId, lastCheckpoint.id);
+}
+```
+
+#### 4. Segmentation Fault
+
+**원인**: C++ 네이티브 모듈 오류 (드물지만 발생 가능)
+
+**증상**:
+```
+Segmentation fault (core dumped)
+```
+
+**처리**:
+```typescript
+agentProcess.on('exit', (code, signal) => {
+  if (signal === 'SIGSEGV') {
+    console.error('💥 Segmentation fault detected');
+
+    // 코어 덤프 수집 (디버깅용)
+    this.collectCoreDump(taskId);
+
+    // 복구 시도
+    this.attemptRecovery(taskId, 'segfault');
+
+    // 관리자에게 알림
+    this.notifyAdmins({
+      type: 'segfault',
+      taskId,
+      message: 'Critical: Segmentation fault occurred',
+    });
+  }
+});
+```
+
+### 통합 Crash 핸들러
+
+```typescript
+export class CrashHandler {
+  async handleCrash(
+    taskId: string,
+    exitCode: number | null,
+    signal: string | null
+  ): Promise<void> {
+    console.error(`🔴 Agent crashed: code=${exitCode}, signal=${signal}`);
+
+    // Crash 타입 식별
+    const crashType = this.identifyCrashType(exitCode, signal);
+
+    // Checkpoint 생성 시도
+    await this.createEmergencyCheckpoint(taskId);
+
+    // 타입별 처리
+    switch (crashType) {
+      case 'OOM':
+        await this.handleOOMCrash(taskId);
+        break;
+      case 'TIMEOUT':
+        await this.handleTimeoutCrash(taskId);
+        break;
+      case 'SIGKILL':
+        await this.handleSigkillCrash(taskId);
+        break;
+      case 'SEGFAULT':
+        await this.handleSegfaultCrash(taskId);
+        break;
+      default:
+        await this.handleUnknownCrash(taskId, exitCode, signal);
+    }
+
+    // 통계 수집
+    this.recordCrashMetrics(crashType);
+  }
+
+  private identifyCrashType(
+    exitCode: number | null,
+    signal: string | null
+  ): string {
+    if (signal === 'SIGKILL' && exitCode === null) return 'OOM';
+    if (signal === 'SIGKILL') return 'SIGKILL';
+    if (signal === 'SIGSEGV') return 'SEGFAULT';
+    if (exitCode === 124) return 'TIMEOUT'; // timeout 명령어 사용 시
+    return 'UNKNOWN';
+  }
+}
+```
+
+---
+
 ## 추가 도움받기
 
 ### 로그 수집
@@ -811,4 +1151,4 @@ uname -a >> logs.txt
 ---
 
 **최종 업데이트**: 2024-02-15
-**버전**: 1.0
+**버전**: 1.1

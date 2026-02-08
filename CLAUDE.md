@@ -388,50 +388,134 @@ Shared packages:
 
 ## Guide Documents
 
-The 24 guide documents in `/guide/` are critical to sub-agent execution. **Different workflow types use different guides**:
+The 24 guide documents in `/guide/` are critical to sub-agent execution. **⚠️ IMPORTANT: Different workflow types use DIFFERENT guides. Do not confuse them.**
 
-### Guides for Phase-A (create_app)
+### 📋 Guide Usage by Workflow Type
 
-**Planning guides** (9 documents): `/guide/planning/`
-- 01_idea.md, 02_market.md, 03_persona.md, 04_user_journey.md, 05_business_model.md
-- 06_product.md, 07_features.md, 08_tech.md, 09_roadmap.md
-- Used in: Phase 1 (Planning)
+| Workflow Type | Phase | Guides Used | Location |
+|--------------|-------|-------------|----------|
+| **Phase-A (create_app)** | Phase 1: Planning | 9 planning guides | `/guide/planning/` |
+| | Phase 2: Design | 5 design guides | `/guide/design/` |
+| | Phase 3: Development | 6 development guides | `/guide/development/` |
+| | Verification | 3 verification guides | `/guide/verification/` |
+| **Phase-B (modify_app)** | Phase 1: Analysis | ❌ No guides (autonomous) | - |
+| | Phase 2-4 | ⚠️ Adapt Phase-A guides | `/guide/` (selective) |
+| **Phase-C (workflow)** | All phases | ⚠️ Adapt Phase-A guides | `/guide/` (selective) |
+| **Type-D (custom)** | N/A | ❌ No guides | - |
 
-**Design guides** (5 documents): `/guide/design/`
-- 01_screen.md, 02_data_model.md, 03_task_flow.md, 04_api.md, 05_architecture.md
-- Used in: Phase 2 (Design)
+### Guides for Phase-A (create_app) ONLY
 
-**Development guides** (6 documents): `/guide/development/`
-- 01_setup.md, 02_data.md, 03_logic.md, 04_ui.md, 05_testing.md, 06_deploy.md
-- Used in: Phase 3 (Development)
+⚠️ **These guides apply ONLY to Phase-A (create_app) workflow.** Do not use them directly for modify_app or workflow tasks.
 
-**Verification guides** (3 documents): `/guide/verification/`
-- phase1_verification.md (for Phase 1 Planning)
-- phase2_verification.md (for Phase 2 Design)
-- phase3_verification.md (for Phase 3 Development)
-- Used by: Verification agents after each phase
+#### Planning Guides (Phase 1 - 9 documents)
+
+| Guide | File | Purpose | Usage Context |
+|-------|------|---------|---------------|
+| 01. Idea | `/guide/planning/01_idea.md` | Define app concept and vision | Phase 1 Planning |
+| 02. Market | `/guide/planning/02_market.md` | Market research and analysis | Phase 1 Planning |
+| 03. Persona | `/guide/planning/03_persona.md` | Target user personas | Phase 1 Planning |
+| 04. User Journey | `/guide/planning/04_user_journey.md` | User flows and scenarios | Phase 1 Planning |
+| 05. Business Model | `/guide/planning/05_business_model.md` | Revenue and monetization | Phase 1 Planning |
+| 06. Product | `/guide/planning/06_product.md` | Product specification | Phase 1 Planning |
+| 07. Features | `/guide/planning/07_features.md` | Feature list and priorities | Phase 1 Planning |
+| 08. Tech Stack | `/guide/planning/08_tech.md` | Technology decisions | Phase 1 Planning |
+| 09. Roadmap | `/guide/planning/09_roadmap.md` | Development roadmap | Phase 1 Planning |
+
+**Deliverables**: 9 planning documents in `docs/planning/` (each ≥500 chars, no placeholders)
+
+#### Design Guides (Phase 2 - 5 documents)
+
+| Guide | File | Purpose | Usage Context |
+|-------|------|---------|---------------|
+| 01. Screen Flow | `/guide/design/01_screen.md` | UI/UX screen designs | Phase 2 Design |
+| 02. Data Model | `/guide/design/02_data_model.md` | Database schema | Phase 2 Design |
+| 03. Task Flow | `/guide/design/03_task_flow.md` | Business logic flows | Phase 2 Design |
+| 04. API Design | `/guide/design/04_api.md` | API endpoints and contracts | Phase 2 Design |
+| 05. Architecture | `/guide/design/05_architecture.md` | System architecture | Phase 2 Design |
+
+**Deliverables**: 5 design documents in `docs/design/` with specific data models and API specs
+
+#### Development Guides (Phase 3 - 6 documents)
+
+| Guide | File | Purpose | Usage Context |
+|-------|------|---------|---------------|
+| 01. Setup | `/guide/development/01_setup.md` | Project initialization | Phase 3 Development |
+| 02. Data Layer | `/guide/development/02_data.md` | Database implementation | Phase 3 Development |
+| 03. Business Logic | `/guide/development/03_logic.md` | Core logic implementation | Phase 3 Development |
+| 04. UI Layer | `/guide/development/04_ui.md` | Frontend implementation | Phase 3 Development |
+| 05. Testing | `/guide/development/05_testing.md` | Test suite creation | Phase 3 Development |
+| 06. Deployment | `/guide/development/06_deploy.md` | Deployment configuration | Phase 3 Development |
+
+**Deliverables**: Complete working codebase in `src/`
+
+#### Verification Guides (3 documents)
+
+| Guide | File | Used By | Purpose |
+|-------|------|---------|---------|
+| Phase 1 Verification | `/guide/verification/phase1_verification.md` | Verification Agent | Validate Phase 1 planning docs |
+| Phase 2 Verification | `/guide/verification/phase2_verification.md` | Verification Agent | Validate Phase 2 design docs |
+| Phase 3 Verification | `/guide/verification/phase3_verification.md` | Verification Agent | Validate Phase 3 codebase |
 
 ### Guides for Phase-B (modify_app)
 
-**Analysis phase**: Sub-agents create their own analysis based on existing codebase
-- No specific guide documents (agents analyze autonomously)
+⚠️ **Phase-B does NOT use planning/design guides directly.** Sub-agents analyze existing code autonomously.
 
-**Planning/Implementation/Testing phases**: Sub-agents follow general software engineering best practices
-- Adapt Phase-A guides as needed for modification context
+#### Guide Usage Strategy
+
+- **Phase 1 (Analysis)**: ❌ No guides - autonomous codebase analysis
+- **Phase 2-4**: ⚠️ Selectively adapt Phase-A guides for modification context
+  - Refer to development guides for coding standards
+  - Skip planning/design guides (code already exists)
+  - Focus on preserving existing functionality
 
 ### Guides for Phase-C (workflow)
 
-**Workflow-specific concerns** (to be created):
-- Trigger definitions (schedule, webhook, manual, event)
-- Step logic (actions, conditions, loops)
-- Integration patterns (external services)
-- Error handling and retry strategies
+⚠️ **Phase-C adapts Phase-A guides for workflow/automation context.**
 
-Currently use Phase-A guides adapted for workflow context.
+#### Guide Usage Strategy
+
+- **Phase 1 (Planning)**: Adapt planning guides focusing on:
+  - Trigger definitions (schedule, webhook, manual, event)
+  - Integration requirements (external services)
+  - Error handling strategies
+- **Phase 2 (Design)**: Adapt design guides focusing on:
+  - Workflow step logic (actions, conditions, loops)
+  - State management
+  - Integration patterns
+- **Phase 3 (Development)**: Use development guides with workflow focus
+
+**Note**: Workflow-specific guide documents are planned but not yet created. Use Phase-A guides as reference.
 
 ### Guides for Type-D (custom)
 
-**No guides required**: Agents respond naturally to user prompts without structured deliverables.
+❌ **No guides required.** Type-D agents respond naturally to user prompts without structured deliverables.
+
+---
+
+### ⚠️ Important Warnings
+
+1. **Do NOT confuse workflow types**:
+   - Phase-A guides are designed for **creating new apps from scratch**
+   - Phase-B agents **analyze existing code** and don't need planning guides
+   - Phase-C agents **adapt guides for automation**, not full app development
+   - Type-D agents **don't use guides at all**
+
+2. **Do NOT apply all guides to all workflows**:
+   - ❌ Wrong: Using 9 planning guides for modify_app
+   - ✅ Right: modify_app does autonomous analysis
+
+3. **Do NOT assume guides are mandatory for all phases**:
+   - Phase-A: All 23 guides (9 planning + 5 design + 6 development + 3 verification)
+   - Phase-B: Selective adaptation (mainly development guides)
+   - Phase-C: Selective adaptation (focus on workflow concerns)
+   - Type-D: None
+
+### Cross-Reference: When to Use Each Workflow
+
+See the "Workflow Type Comparison" table below for quick reference on:
+- Which guides apply to each workflow type
+- What deliverables are expected
+- When to use each workflow type
 
 ## Workflow Type Comparison
 
