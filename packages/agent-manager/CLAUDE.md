@@ -15,45 +15,47 @@
 
 ## 📚 문서 구조
 
-모든 상세 문서는 `docs/` 폴더에 주제별로 정리되어 있습니다:
+**중요**: 패키지별 상세 문서는 현재 개발 중입니다. 대신 **루트 `/docs/` 폴더**의 문서를 참조하세요:
 
 ```
-docs/
-├── lifecycle/       # 에이전트 생명주기
-├── protocols/       # 프로토콜 처리
-├── queue/          # 대기열 관리
-├── checkpoint/     # Checkpoint 시스템
-└── monitoring/     # 모니터링
+/docs/  (루트)
+├── ARCHITECTURE.md      # 3-tier 아키텍처 (Tier 2: Agent Manager)
+├── WORKFLOWS.md         # Phase-based 워크플로우
+├── PROTOCOLS.md         # 플랫폼-에이전트 통신
+├── STATE_MACHINE.md     # 에이전트 상태 전이
+├── CHECKPOINT_SYSTEM.md # Checkpoint 메커니즘
+├── RATE_LIMITING.md     # Rate limit 처리
+└── ... (기타 문서들)
 ```
 
-**📖 시작하기**: `docs/README.md`를 먼저 읽어보세요.
+**📖 시작하기**: 루트의 `/docs/QUICK_START.md`를 먼저 읽어보세요.
 
 ## 🚀 빠른 시작
 
 ### 1. 처음 시작할 때
 
 ```
-1. docs/lifecycle/README.md
-   → 에이전트 생명주기 이해
+1. /docs/ARCHITECTURE.md (루트)
+   → Tier 2: Agent Manager 섹션 읽기
 
-2. docs/protocols/README.md
+2. /docs/STATE_MACHINE.md (루트)
+   → 에이전트 상태 전이 이해
+
+3. /docs/PROTOCOLS.md (루트)
    → 프로토콜 처리 방법
-
-3. docs/monitoring/status-tracking.md
-   → 상태 추적 방법
 ```
 
 ### 2. 특정 기능 구현할 때
 
-| 구현할 기능 | 읽을 문서 |
+| 구현할 기능 | 읽을 문서 (루트 `/docs/`) |
 |------------|----------|
-| 에이전트 생성 | `docs/lifecycle/creation.md` |
-| 에이전트 제어 | `docs/lifecycle/execution.md` |
-| 질문 처리 | `docs/protocols/question.md` |
-| Phase 완료 처리 | `docs/protocols/phase-completion.md` |
-| 토큰 추적 | `docs/monitoring/token-management.md` |
-| Checkpoint | `docs/checkpoint/creation.md` |
-| 대기열 관리 | `docs/queue/priority.md` |
+| 에이전트 생성 | `/docs/ARCHITECTURE.md` (Agent Manager 섹션) |
+| 에이전트 제어 | `/docs/STATE_MACHINE.md` |
+| 질문 처리 | `/docs/PROTOCOLS.md` (USER_QUESTION) |
+| Phase 완료 처리 | `/docs/PROTOCOLS.md` (PHASE_COMPLETE) |
+| 토큰 추적 | `/docs/FEATURES.md` (Token Management) |
+| Checkpoint | `/docs/CHECKPOINT_SYSTEM.md` |
+| Rate Limiting | `/docs/RATE_LIMITING.md` |
 
 ## 🔍 일반적인 작업 흐름
 
@@ -61,66 +63,73 @@ docs/
 
 ```
 1. 웹 서버로부터 Task 수신
-   → docs/lifecycle/creation.md
+   → /docs/ARCHITECTURE.md (Tier 1 → Tier 2 통신)
 
 2. 서브 에이전트 생성
    → spawn Claude Code process
+   → /docs/ARCHITECTURE.md (Agent Manager 섹션)
 
 3. 초기 프롬프트 전달
    → Task 타입에 맞는 워크플로우 프롬프트
+   → /docs/WORKFLOWS.md
 
 4. 출력 모니터링
-   → docs/protocols/README.md
+   → /docs/PROTOCOLS.md
 
 5. 프로토콜 감지 및 처리
-   → docs/protocols/[해당프로토콜].md
+   → /docs/PROTOCOLS.md (각 프로토콜 섹션)
 ```
 
 ### Phase 완료 처리
 
 ```
 1. Phase 완료 신호 감지
-   → docs/protocols/phase-completion.md
+   → /docs/PROTOCOLS.md (PHASE_COMPLETE 섹션)
 
 2. 에이전트 일시 중지
-   → docs/lifecycle/execution.md
+   → /docs/STATE_MACHINE.md (running → paused)
 
 3. 산출물 수집
    → 작업 디렉토리 (/projects/{task-id}/) 스캔
    → Phase별 대상 디렉토리 (docs/planning, docs/design, src 등)
    → 생성된 파일 목록 및 메타데이터 수집
+   → /docs/WORKFLOWS.md (산출물 정의)
 
 4. 리뷰 생성 요청
    → 수집된 산출물 정보를 웹 서버에 전달
    → 웹 서버가 리뷰 생성
+   → /docs/WORKFLOWS.md (Review Gate System)
 
 5. 승인 대기
    → waiting_review 상태
+   → /docs/STATE_MACHINE.md
 
 6. 승인 시 다음 Phase 시작
    → 다음 Phase 프롬프트 전달
+   → /docs/WORKFLOWS.md (Phase 전환)
 ```
 
 ### Rate Limit 처리
 
 ```
 1. Rate Limit 감지
-   → docs/monitoring/rate-limit.md
+   → /docs/RATE_LIMITING.md (Detection)
 
 2. Checkpoint 생성
-   → docs/checkpoint/creation.md
+   → /docs/CHECKPOINT_SYSTEM.md (Creation)
 
 3. 에이전트 일시 중지
-   → docs/lifecycle/execution.md
+   → /docs/STATE_MACHINE.md (running → paused)
 
 4. 대기열로 이동
-   → docs/queue/priority.md
+   → /docs/RATE_LIMITING.md (Queue Management)
 
 5. Reset 시간 대기
    → 자동 스케줄링
+   → /docs/RATE_LIMITING.md (Retry Strategy)
 
 6. 자동 재개
-   → docs/checkpoint/restoration.md
+   → /docs/CHECKPOINT_SYSTEM.md (Restoration)
 ```
 
 ## 🏗️ 에이전트 상태 관리
@@ -150,7 +159,7 @@ idle → running → waiting_review → running → completed
      running
 ```
 
-**상세**: `docs/monitoring/status-tracking.md` 참조
+**상세**: `/docs/STATE_MACHINE.md` 참조
 
 ## 📊 프로토콜 처리 우선순위
 
@@ -176,7 +185,7 @@ idle → running → waiting_review → running → completed
 - **에러** 발생 시
 - **Phase 완료** 시
 
-**상세**: `docs/checkpoint/creation.md` 참조
+**상세**: `/docs/CHECKPOINT_SYSTEM.md` 참조
 
 ## 🔗 다른 계층과의 통신
 
@@ -207,34 +216,35 @@ idle → running → waiting_review → running → completed
 - stderr 출력 (에러)
 - 종료 코드
 
-## 📖 전체 문서 목록
+## 📖 전체 문서 목록 (루트 `/docs/` 참조)
 
-### Lifecycle (생명주기)
-- `docs/lifecycle/README.md` - 생명주기 개요
-- `docs/lifecycle/creation.md` - 에이전트 생성
-- `docs/lifecycle/execution.md` - 실행 및 제어
-- `docs/lifecycle/termination.md` - 종료 및 정리
+### 핵심 문서 (Core Documentation)
+- `/docs/ARCHITECTURE.md` - 3-tier 아키텍처 (Tier 2: Agent Manager)
+- `/docs/STATE_MACHINE.md` - 에이전트 상태 전이
+- `/docs/PROTOCOLS.md` - 플랫폼-에이전트 통신 프로토콜
+- `/docs/WORKFLOWS.md` - Phase-based 워크플로우
+- `/docs/FEATURES.md` - 전체 기능 명세
 
-### Protocols (프로토콜)
-- `docs/protocols/README.md` - 프로토콜 개요
-- `docs/protocols/question.md` - 사용자 질문
-- `docs/protocols/phase-completion.md` - Phase 완료
-- `docs/protocols/error.md` - 에러 처리
+### 시스템별 문서 (System-Specific)
+- `/docs/CHECKPOINT_SYSTEM.md` - Checkpoint 메커니즘
+- `/docs/RATE_LIMITING.md` - Rate limit 처리
+- `/docs/SETTINGS_SYSTEM.md` - 설정 시스템
+- `/docs/TROUBLESHOOTING.md` - 문제 해결 가이드
 
-### Queue (대기열)
-- `docs/queue/README.md` - 대기열 개요
-- `docs/queue/priority.md` - 우선순위 관리
+### 참조 문서 (Reference)
+- `/docs/QUICK_START.md` - 빠른 시작 가이드
+- `/docs/README.md` - 문서 인덱스
+- `/docs/GLOSSARY.md` - 용어 정의
+- `/docs/DIAGRAMS.md` - 시스템 다이어그램
 
-### Checkpoint (체크포인트)
-- `docs/checkpoint/README.md` - Checkpoint 개요
-- `docs/checkpoint/creation.md` - 생성
-- `docs/checkpoint/restoration.md` - 복구
-
-### Monitoring (모니터링)
-- `docs/monitoring/README.md` - 모니터링 개요
-- `docs/monitoring/status-tracking.md` - 상태 추적
-- `docs/monitoring/token-management.md` - 토큰 관리
-- `docs/monitoring/rate-limit.md` - Rate Limit 처리
+### 패키지별 상세 문서 (계획 중)
+패키지별 상세 구현 문서는 현재 개발 중입니다.
+구현 시작 시 다음 구조로 작성될 예정:
+- `packages/agent-manager/docs/lifecycle/`
+- `packages/agent-manager/docs/protocols/`
+- `packages/agent-manager/docs/queue/`
+- `packages/agent-manager/docs/checkpoint/`
+- `packages/agent-manager/docs/monitoring/`
 
 ## 💡 Best Practices
 
@@ -249,26 +259,30 @@ idle → running → waiting_review → running → completed
 ## 🆘 문제 해결
 
 ### "어떤 문서를 읽어야 할지 모르겠어요"
-→ `docs/README.md`부터 시작하세요.
+→ `/docs/README.md`부터 시작하세요.
 
 ### "프로토콜을 어떻게 파싱하나요?"
-→ `docs/protocols/README.md` 참조
+→ `/docs/PROTOCOLS.md` 참조
 
 ### "에이전트가 응답하지 않아요"
-→ `docs/monitoring/status-tracking.md` → 상태 확인
+→ `/docs/STATE_MACHINE.md` → 상태 확인
+→ `/docs/TROUBLESHOOTING.md` → 해결 방법
 
 ### "Rate Limit이 자주 발생해요"
-→ `docs/monitoring/rate-limit.md` → 대응 전략
+→ `/docs/RATE_LIMITING.md` → 대응 전략
 
 ## 🔄 다음 단계
 
-1. **`docs/README.md`** 읽기
-2. **`docs/lifecycle/README.md`** 읽기
-3. **`docs/protocols/README.md`** 읽기
-4. **필요한 기능 문서** 읽기
+1. **`/docs/README.md`** (루트) 읽기
+2. **`/docs/ARCHITECTURE.md`** → Tier 2: Agent Manager 섹션 읽기
+3. **`/docs/STATE_MACHINE.md`** 읽기
+4. **`/docs/PROTOCOLS.md`** 읽기
+5. **필요한 시스템 문서** 읽기
 
 ---
 
-**기억하세요**: 이 CLAUDE.md는 전체 개요입니다. 상세한 내용은 `docs/` 폴더의 해당 문서를 참조하세요!
+**기억하세요**: 이 CLAUDE.md는 Tier 2 (Agent Manager) 개요입니다. 상세한 내용은 루트 `/docs/` 폴더의 문서를 참조하세요!
 
-**문서 위치**: `/packages/agent-manager/docs/`
+**문서 위치**:
+- 이 파일: `/packages/agent-manager/CLAUDE.md`
+- 상세 문서: 루트 `/docs/` (ARCHITECTURE.md, STATE_MACHINE.md, PROTOCOLS.md 등)

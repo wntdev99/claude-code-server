@@ -115,13 +115,45 @@ Phase 4: 검증 (Testing) - 자동 검증
 **책임**: Verification Agent (자동 검증)
 
 **Phase 4에서 수행되는 작업**:
-1. **자동 검증**: Verification Agent가 Phase 3 산출물 검증
+1. **자동 검증**: Verification Agent가 각 Phase 산출물 검증
 2. **품질 보증**: 검증 가이드 기준에 따른 자동 체크
 3. **최종 검증**: 태스크 완료 전 최종 품질 확인
 
 **중요**: Phase 4는 Sub-Agent가 아닌 **Verification Agent**가 수행합니다.
 - Sub-Agent는 Phase 3에서 테스트 코드를 **작성**하고 실행 결과를 포함
 - Verification Agent는 Phase 4에서 전체 산출물의 **품질을 검증**
+
+**Verification Agent 실행 시점 및 사용 가이드**:
+
+| Phase 완료 | 검증 가이드 | 검증 대상 |
+|-----------|-----------|---------|
+| Phase 1 완료 후 | `/guide/verification/phase1_verification.md` | 9개 기획 문서 일관성, 타당성 |
+| Phase 2 완료 후 | `/guide/verification/phase2_verification.md` | 5개 설계 문서 정합성, 일관성 |
+| Phase 3 완료 후 | `/guide/verification/phase3_verification.md` | 코드 vs 설계 정합성, 보안 |
+
+**검증 프로세스**:
+```
+Sub-Agent: Phase N 완료 → "=== PHASE N COMPLETE ===" 출력
+  ↓
+Agent Manager: Phase 완료 신호 감지 → Sub-Agent 일시중지 (SIGTSTP)
+  ↓
+Agent Manager: Verification Agent 생성 및 실행
+  ↓
+Verification Agent: `/guide/verification/phaseN_verification.md` 읽기
+  ↓
+Verification Agent: 산출물 검증 (일관성, 정합성, 품질 기준)
+  ↓
+Verification Agent: 검증 결과 JSON 출력
+  ↓
+Agent Manager: 결과 파싱
+  - 통과 → 리뷰 생성 → 사용자 승인 대기
+  - 실패 → 피드백 전달 → Sub-Agent 재작업 (최대 3회)
+```
+
+**검증 실패 시 재작업 흐름**:
+- **1차 실패**: Verification Agent 피드백 전달 → Sub-Agent 재작업 → 재검증
+- **2차 실패**: 추가 피드백 전달 → Sub-Agent 재작업 → 재검증
+- **3차 실패**: 사용자에게 알림 → 수동 검토 또는 작업 중단 결정
 
 ### create_app (Phase-A)를 위한 서브 에이전트 지침
 

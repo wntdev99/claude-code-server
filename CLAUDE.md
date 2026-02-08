@@ -443,11 +443,11 @@ Currently use Phase-A guides adapted for workflow context.
 | **Phase 1** | Planning (9 docs) | Analysis (1 doc) | Planning (workflow reqs) | N/A (single phase) |
 | **Phase 2** | Design (5 docs) | Planning (1 doc) | Design (workflow logic) | N/A |
 | **Phase 3** | Development (code) | Implementation (code) | Development (code) | N/A |
-| **Phase 4** | Testing | Testing | Testing | N/A |
+| **Phase 4** | **Verification** (Verification Agent) | **Testing** (Sub-Agent직접) | **Testing** (Sub-Agent 직접) | N/A |
 | **Main Guides** | /guide/planning/, /guide/design/, /guide/development/ | Autonomous analysis, adapt Phase-A guides | Adapt Phase-A guides for workflows | None |
 | **Deliverables** | 14 docs + codebase | 2 docs + modified code | 2 docs + workflow code | Varies |
 | **Starting Point** | Blank slate | Existing codebase | Blank slate (workflow-focused) | User prompt |
-| **Verification** | 3 verification guides | Adapted verification | Adapted verification | None |
+| **Verification** | 3 verification guides (automated) | Sub-Agent manual testing | Sub-Agent manual testing | None |
 | **Review Gates** | After each phase | After each phase | After each phase | None |
 | **Key Focus** | Complete app (planning, design, implementation) | Careful modification (no breaking changes) | Automation (triggers, integrations) | User satisfaction |
 

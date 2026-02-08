@@ -14,53 +14,56 @@
 
 ## 📚 문서 구조
 
-모든 상세 문서는 `docs/` 폴더에 주제별로 정리되어 있습니다:
+**중요**: 패키지별 상세 문서는 현재 개발 중입니다. 대신 **루트 `/docs/` 폴더**의 문서를 참조하세요:
 
 ```
-docs/
-├── architecture/    # 아키텍처 및 구조
-├── development/     # 개발 환경 및 도구
-├── features/        # 주요 기능 구현
-├── security/        # 보안
-└── api/            # API 설계
+/docs/  (루트)
+├── ARCHITECTURE.md      # 3-tier 아키텍처
+├── WORKFLOWS.md         # Phase-based 워크플로우
+├── PROTOCOLS.md         # 플랫폼-에이전트 통신
+├── FEATURES.md          # 전체 기능 명세
+├── API.md              # REST API 참조
+├── DEVELOPMENT.md      # 개발 환경 설정
+├── SETTINGS_SYSTEM.md  # 설정 시스템
+└── ... (기타 문서들)
 ```
 
-**📖 시작하기**: `docs/README.md`를 먼저 읽어보세요.
+**📖 시작하기**: 루트의 `/docs/QUICK_START.md`를 먼저 읽어보세요.
 
 ## 🚀 빠른 시작
 
 ### 1. 처음 시작할 때
 
 ```
-1. docs/development/setup.md
+1. /docs/DEVELOPMENT.md (루트)
    → 개발 환경 설정
 
-2. docs/architecture/nextjs-structure.md
-   → 프로젝트 구조 이해
+2. /docs/ARCHITECTURE.md (루트)
+   → 3-tier 시스템 구조 이해
 
-3. docs/development/conventions.md
-   → 코딩 컨벤션 학습
+3. /docs/QUICK_START.md (루트)
+   → 빠른 시작 가이드
 ```
 
 ### 2. 기능 구현할 때
 
-**필요한 기능의 문서를 찾아서 읽으세요**:
+**필요한 기능의 문서를 찾아서 읽으세요** (루트 `/docs/` 참조):
 
 | 구현할 기능 | 읽을 문서 |
 |------------|----------|
-| Task API 만들기 | `docs/api/tasks-api.md` |
-| 로그 스트리밍 | `docs/features/sse-streaming.md` |
-| 에이전트 실행 | `docs/features/process-management.md` |
-| 프로토콜 파싱 | `docs/features/protocol-parsing.md` |
-| 리뷰 시스템 | `docs/features/review-system.md` |
-| 경로 검증 | `docs/security/path-validation.md` |
-| 암호화 | `docs/security/encryption.md` |
+| Task API 만들기 | `/docs/API.md` (Tasks API 섹션) |
+| 로그 스트리밍 | `/docs/FEATURES.md` (SSE Streaming 섹션) |
+| 에이전트 실행 | `/docs/ARCHITECTURE.md` (Process Management 섹션) |
+| 프로토콜 파싱 | `/docs/PROTOCOLS.md` |
+| 리뷰 시스템 | `/docs/WORKFLOWS.md` (Review Gate 섹션) |
+| 경로 검증 | `/docs/ARCHITECTURE.md` (Security 섹션) |
+| Settings 시스템 | `/docs/SETTINGS_SYSTEM.md` |
 
 ### 3. 문제 해결할 때
 
 ```
-docs/development/debugging.md
-→ 디버깅 방법과 일반적인 문제 해결
+/docs/TROUBLESHOOTING.md (루트)
+→ 문제 해결 가이드 및 일반적인 이슈
 ```
 
 ## 📋 주요 기술 스택
@@ -77,50 +80,50 @@ docs/development/debugging.md
 
 ```
 1. Task 생성 API
-   → docs/api/tasks-api.md
-   → docs/features/task-management.md
+   → /docs/API.md (Tasks API 섹션)
+   → /docs/FEATURES.md (Task Management 섹션)
 
 2. 에이전트 프로세스 시작
-   → docs/features/process-management.md
+   → /docs/ARCHITECTURE.md (Tier 1: Web Server 섹션)
 
 3. 로그 스트리밍
-   → docs/features/sse-streaming.md
+   → /docs/FEATURES.md (SSE Streaming 섹션)
 
 4. 프로토콜 파싱
-   → docs/features/protocol-parsing.md
+   → /docs/PROTOCOLS.md
 
 5. 보안 적용
-   → docs/security/path-validation.md
-   → docs/security/rate-limiting.md
+   → /docs/ARCHITECTURE.md (Security 섹션)
+   → /docs/RATE_LIMITING.md
 ```
 
 ### Phase 완료 처리 구현
 
 ```
 1. 완료 신호 감지
-   → docs/features/protocol-parsing.md
+   → /docs/PROTOCOLS.md (PHASE_COMPLETE 섹션)
 
 2. 프로세스 일시중지
-   → docs/features/process-management.md
+   → /docs/ARCHITECTURE.md (Process Management)
 
 3. 리뷰 생성
-   → docs/features/review-system.md
+   → /docs/WORKFLOWS.md (Review Gate System)
 ```
 
-### 의존성 요청 처리 구현
+### Settings 처리 구현
 
 ```
-1. 의존성 요청 감지
-   → docs/features/protocol-parsing.md
+1. Settings 조회 API
+   → /docs/SETTINGS_SYSTEM.md
 
-2. 프로세스 일시중지
-   → docs/features/process-management.md
+2. Settings 암호화
+   → /docs/ARCHITECTURE.md (Security 섹션)
 
-3. 값 암호화
-   → docs/security/encryption.md
+3. Agent에 전달
+   → /docs/SETTINGS_SYSTEM.md (Data Flow)
 
-4. 프로세스 재개
-   → docs/features/process-management.md
+참고: DEPENDENCY_REQUEST 프로토콜은 deprecated입니다.
+Settings 시스템을 사용하세요.
 ```
 
 ## 🏗️ 프로젝트 구조
@@ -135,10 +138,10 @@ packages/claude-code-server/
 │   ├── agent/          # 에이전트 관리
 │   ├── store/          # 상태 관리
 │   └── utils/          # 유틸리티
-└── docs/               # 📚 상세 문서 (여기!)
+└── CLAUDE.md           # 이 파일
 ```
 
-**상세 구조**: `docs/architecture/nextjs-structure.md` 참조
+**상세 구조**: 루트 `/docs/ARCHITECTURE.md` 참조
 
 ## 🔐 보안 체크리스트
 
@@ -150,7 +153,7 @@ packages/claude-code-server/
 - [ ] **Rate Limiting**: API 엔드포인트 Rate Limiting 적용
 - [ ] **에러 처리**: 민감한 정보 노출 방지
 
-**상세**: `docs/security/` 폴더 참조
+**상세**: `/docs/ARCHITECTURE.md` (Security 섹션) 참조
 
 ## 🔗 다른 계층과의 통신
 
@@ -168,45 +171,39 @@ Agent Manager → 웹 서버
   - 프로토콜 메시지
 ```
 
-**상세**: `../agent-manager/docs/` 참조
+**상세**: `/docs/ARCHITECTURE.md` (Tier 2: Agent Manager 섹션) 참조
 
-## 📖 전체 문서 목록
+## 📖 전체 문서 목록 (루트 `/docs/` 참조)
 
-### Architecture (구조)
-- `docs/architecture/README.md` - 아키텍처 문서 개요
-- `docs/architecture/nextjs-structure.md` - Next.js 프로젝트 구조
-- `docs/architecture/api-routes.md` - API Routes 설계
-- `docs/architecture/state-management.md` - 상태 관리
-- `docs/architecture/ui-components.md` - UI 컴포넌트
+### 핵심 문서 (Core Documentation)
+- `/docs/ARCHITECTURE.md` - 3-tier 시스템 아키텍처
+- `/docs/WORKFLOWS.md` - Phase-based 워크플로우
+- `/docs/FEATURES.md` - 전체 기능 명세
+- `/docs/API.md` - REST API 참조
+- `/docs/DEVELOPMENT.md` - 개발 환경 설정
 
-### Development (개발)
-- `docs/development/README.md` - 개발 문서 개요
-- `docs/development/setup.md` - 환경 설정
-- `docs/development/testing.md` - 테스팅
-- `docs/development/debugging.md` - 디버깅
-- `docs/development/conventions.md` - 코딩 컨벤션
+### 참조 문서 (Reference Documentation)
+- `/docs/QUICK_START.md` - 빠른 시작 가이드
+- `/docs/README.md` - 문서 인덱스
+- `/docs/GLOSSARY.md` - 용어 정의
+- `/docs/PROTOCOLS.md` - 플랫폼-에이전트 통신
+- `/docs/STATE_MACHINE.md` - 에이전트 상태 전이
+- `/docs/DIAGRAMS.md` - 시스템 다이어그램
 
-### Features (기능)
-- `docs/features/README.md` - 기능 문서 개요
-- `docs/features/sse-streaming.md` - SSE 스트리밍
-- `docs/features/process-management.md` - 프로세스 관리
-- `docs/features/protocol-parsing.md` - 프로토콜 파싱
-- `docs/features/task-management.md` - Task 관리
-- `docs/features/review-system.md` - 리뷰 시스템
+### 시스템별 문서 (System-Specific)
+- `/docs/SETTINGS_SYSTEM.md` - 설정 시스템 (권장)
+- `/docs/CHECKPOINT_SYSTEM.md` - 체크포인트 시스템
+- `/docs/RATE_LIMITING.md` - Rate Limit 처리
+- `/docs/TROUBLESHOOTING.md` - 문제 해결 가이드
+- `/docs/DEPENDENCY_SYSTEM.md` - ⚠️ DEPRECATED (사용 금지)
 
-### Security (보안)
-- `docs/security/README.md` - 보안 문서 개요
-- `docs/security/path-validation.md` - 경로 검증
-- `docs/security/encryption.md` - 암호화
-- `docs/security/rate-limiting.md` - Rate Limiting
-- `docs/security/input-sanitization.md` - 입력 검증
-
-### API (API 설계)
-- `docs/api/README.md` - API 문서 개요
-- `docs/api/tasks-api.md` - Tasks API
-- `docs/api/reviews-api.md` - Reviews API
-- `docs/api/dependencies-api.md` - Dependencies API
-- `docs/api/questions-api.md` - Questions API
+### 패키지별 상세 문서 (계획 중)
+패키지별 상세 구현 문서는 현재 개발 중입니다.
+구현 시작 시 다음 구조로 작성될 예정:
+- `packages/claude-code-server/docs/architecture/`
+- `packages/claude-code-server/docs/features/`
+- `packages/claude-code-server/docs/security/`
+- `packages/claude-code-server/docs/api/`
 
 ## 💡 효율적인 문서 활용법
 
@@ -242,66 +239,68 @@ Agent Manager → 웹 서버
 
 ```
 1주차: 구조 이해
-  - docs/architecture/nextjs-structure.md
-  - docs/development/setup.md
-  - docs/development/conventions.md
+  - /docs/QUICK_START.md
+  - /docs/ARCHITECTURE.md
+  - /docs/DEVELOPMENT.md
 
 2주차: 기본 기능
-  - docs/features/task-management.md
-  - docs/api/tasks-api.md
-  - docs/security/path-validation.md
+  - /docs/FEATURES.md (Task Management 섹션)
+  - /docs/API.md (Tasks API)
+  - /docs/ARCHITECTURE.md (Security 섹션)
 ```
 
 ### 중급 (핵심 기능 구현)
 
 ```
 3주차: 실시간 통신
-  - docs/features/sse-streaming.md
-  - docs/features/process-management.md
+  - /docs/FEATURES.md (SSE Streaming)
+  - /docs/ARCHITECTURE.md (Process Management)
 
 4주차: 프로토콜
-  - docs/features/protocol-parsing.md
-  - docs/features/review-system.md
+  - /docs/PROTOCOLS.md
+  - /docs/WORKFLOWS.md (Review Gate System)
 ```
 
 ### 고급 (최적화 및 보안)
 
 ```
 5주차: 보안 강화
-  - docs/security/encryption.md
-  - docs/security/rate-limiting.md
-  - docs/security/input-sanitization.md
+  - /docs/ARCHITECTURE.md (Security 섹션)
+  - /docs/RATE_LIMITING.md
+  - /docs/SETTINGS_SYSTEM.md
 
-6주차: 성능 최적화
-  - docs/development/testing.md
-  - docs/development/debugging.md
+6주차: 운영 및 문제 해결
+  - /docs/CHECKPOINT_SYSTEM.md
+  - /docs/TROUBLESHOOTING.md
 ```
 
 ## 🆘 문제 해결
 
 ### "어떤 문서를 읽어야 할지 모르겠어요"
-→ `docs/README.md`부터 시작하세요. 전체 구조를 설명합니다.
+→ `/docs/README.md`부터 시작하세요. 전체 구조를 설명합니다.
 
 ### "특정 기능을 어떻게 구현하나요?"
-→ `docs/features/README.md`에서 해당 기능 문서를 찾으세요.
+→ `/docs/FEATURES.md`에서 해당 기능 섹션을 찾으세요.
 
 ### "코드가 동작하지 않아요"
-→ `docs/development/debugging.md`를 참조하세요.
+→ `/docs/TROUBLESHOOTING.md`를 참조하세요.
 
 ### "보안은 어떻게 적용하나요?"
-→ `docs/security/README.md`에서 시작하세요.
+→ `/docs/ARCHITECTURE.md`의 Security 섹션에서 시작하세요.
 
 ## 🔄 다음 단계
 
 이 가이드를 읽었다면:
 
-1. **`docs/README.md`** 읽기 → 문서 구조 파악
-2. **`docs/development/setup.md`** 읽기 → 환경 설정
-3. **`docs/architecture/nextjs-structure.md`** 읽기 → 프로젝트 구조 이해
+1. **`/docs/README.md`** (루트) 읽기 → 문서 구조 파악
+2. **`/docs/DEVELOPMENT.md`** 읽기 → 환경 설정
+3. **`/docs/ARCHITECTURE.md`** 읽기 → 3-tier 구조 이해
 4. **필요한 기능 문서** 읽기 → 구현 시작
 
 ---
 
-**기억하세요**: 이 CLAUDE.md는 전체 개요입니다. 상세한 내용은 `docs/` 폴더의 해당 문서를 참조하세요!
+**기억하세요**: 이 CLAUDE.md는 Tier 1 (Web Server) 개요입니다. 상세한 내용은 루트 `/docs/` 폴더의 문서를 참조하세요!
 
-**문서 위치**: `/packages/claude-code-server/docs/`
+**문서 위치**:
+- 이 파일: `/packages/claude-code-server/CLAUDE.md`
+- 상세 문서: 루트 `/docs/` (ARCHITECTURE.md, WORKFLOWS.md, PROTOCOLS.md 등)

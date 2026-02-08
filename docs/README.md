@@ -64,10 +64,11 @@ Claude Code Server 문서에 오신 것을 환영합니다! 이 가이드는 모
 
 | Document | Description | When to Read |
 |----------|-------------|--------------|
+| **[SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md)** | ✅ **RECOMMENDED** - Settings and optional integrations, upfront configuration<br/>✅ **권장** - 설정 및 선택적 통합, 사전 구성 방식 | Configuring platform settings, optional integrations (GitHub, Vercel, etc.)<br/>플랫폼 설정 구성, 선택적 통합 (GitHub, Vercel 등) |
 | **[CHECKPOINT_SYSTEM.md](CHECKPOINT_SYSTEM.md)** | Session save/restore mechanisms, checkpoint triggers, recovery process<br/>세션 저장/복원 메커니즘, 체크포인트 트리거, 복구 프로세스 | Implementing checkpoint features, debugging recovery<br/>체크포인트 기능 구현, 복구 디버깅 시 |
-| **[DEPENDENCY_SYSTEM.md](DEPENDENCY_SYSTEM.md)** | ⚠️ **DEPRECATED** - Dependency management (use Settings system instead)<br/>⚠️ **사용 중단** - 의존성 관리 (Settings 시스템 사용 권장) | Historical reference only - DO NOT implement<br/>히스토리 참조용 - 구현하지 마세요 |
 | **[RATE_LIMITING.md](RATE_LIMITING.md)** | Rate limit detection, auto-pause/resume, cooldown strategies<br/>Rate limit 감지, 자동 일시중지/재개, 쿨다운 전략 | Handling Claude API rate limits, optimizing token usage<br/>Claude API rate limit 처리, 토큰 사용량 최적화 시 |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues and solutions, debugging tips, FAQ<br/>일반적인 문제 해결, 디버깅 팁, FAQ | Encountering errors, debugging issues<br/>에러 발생, 문제 디버깅 시 |
+| **[DEPENDENCY_SYSTEM.md](DEPENDENCY_SYSTEM.md)** | ⚠️ **DEPRECATED** - Dependency management (use Settings system instead)<br/>⚠️ **사용 중단** - 의존성 관리 (Settings 시스템 사용 권장) | Historical reference only - DO NOT implement<br/>히스토리 참조용 - 구현하지 마세요 |
 
 ---
 
@@ -172,10 +173,10 @@ All major documents follow this structure:
 |----------|-------|--------------|-------|
 | **Core** | 5 files | ✅ 100% | All essential topics covered |
 | **Reference** | 4 files | ✅ 100% | Complete reference material |
-| **System-Specific** | 4 files | ⚠️ 75% | DEPENDENCY_SYSTEM.md deprecated |
+| **System-Specific** | 5 files | ✅ 100% | SETTINGS_SYSTEM.md added (recommended), DEPENDENCY_SYSTEM.md deprecated |
 | **Quick Start** | 1 file | ✅ 100% | Fast onboarding complete |
 
-**Total Documentation**: 14 files (15,098 lines)
+**Total Documentation**: 15 files (~16,000 lines)
 
 ---
 

@@ -69,17 +69,27 @@ package.json
 
 ## 📚 문서 구조
 
-모든 상세 문서는 `docs/` 폴더에 주제별로 정리되어 있습니다:
+**중요**: 패키지별 상세 문서는 현재 개발 중입니다. 대신 다음 문서들을 참조하세요:
 
+**루트 `/docs/` (프로젝트 전체 문서)**:
 ```
-docs/
-├── workflows/       # 작업 타입별 워크플로우
-├── protocols/       # 통신 프로토콜
-├── deliverables/    # 산출물 생성 규칙
-└── verification/    # 검증 기준
+/docs/  (루트)
+├── WORKFLOWS.md         # 4가지 작업 타입 워크플로우
+├── PROTOCOLS.md         # 플랫폼-에이전트 통신 프로토콜
+├── ARCHITECTURE.md      # 3-tier 아키텍처 (Tier 3: Sub-Agent)
+└── ... (기타 문서들)
 ```
 
-**📖 시작하기**: `docs/README.md`를 먼저 읽어보세요.
+**가이드 문서 `/guide/` (Sub-Agent 전용 가이드)**:
+```
+/guide/
+├── planning/        # Phase 1 기획 가이드 (9개)
+├── design/          # Phase 2 설계 가이드 (5개)
+├── development/     # Phase 3 개발 가이드 (6개)
+└── verification/    # 검증 기준 (3개)
+```
+
+**📖 시작하기**: 루트의 `/docs/WORKFLOWS.md`를 먼저 읽어보세요.
 
 ## 🚀 빠른 시작
 
@@ -90,7 +100,7 @@ docs/
    → create_app / modify_app / workflow / custom
 
 2. 워크플로우 이해
-   → docs/workflows/[작업타입].md
+   → /docs/WORKFLOWS.md (루트)
 
 3. Phase 1 시작
    → /guide/[phase]/01_*.md 읽기
@@ -98,39 +108,40 @@ docs/
 
 ### 2. 작업 타입별 가이드
 
-| 작업 타입 | 읽을 문서 |
+| 작업 타입 | 읽을 문서 (루트 `/docs/`) |
 |----------|----------|
-| create_app | `docs/workflows/create-app.md` |
-| modify_app | `docs/workflows/modify-app.md` |
-| workflow | `docs/workflows/workflow.md` |
-| custom | `docs/workflows/custom.md` |
+| create_app | `/docs/WORKFLOWS.md` (Phase-A 섹션) |
+| modify_app | `/docs/WORKFLOWS.md` (Phase-B 섹션) |
+| workflow | `/docs/WORKFLOWS.md` (Phase-C 섹션) |
+| custom | `/docs/WORKFLOWS.md` (Type-D 섹션) |
 
 ### 3. 필요한 순간에 참조
 
 | 필요한 것 | 읽을 문서 |
 |----------|----------|
-| Optional Integrations 활용 | 이 문서의 "🔌 Optional Integrations" 섹션 |
-| 사용자 질문 | `docs/protocols/user-question.md` |
-| 문서 작성 규칙 | `docs/deliverables/documents.md` |
-| 코드 작성 규칙 | `docs/deliverables/code.md` |
-| 검증 기준 | `docs/verification/phase[N]-*.md` |
+| Optional Integrations 활용 | 이 문서의 "🔌 Optional Integrations" 섹션<br>`/docs/SETTINGS_SYSTEM.md` (루트) |
+| 사용자 질문 | `/docs/PROTOCOLS.md` (USER_QUESTION 섹션) |
+| 문서/코드 작성 규칙 | `/docs/WORKFLOWS.md` (산출물 규칙) |
+| 검증 기준 | `/guide/verification/phase[N]_verification.md` |
+| Phase 완료 신호 | `/docs/PROTOCOLS.md` (PHASE_COMPLETE 섹션) |
 
 ## 🔍 일반적인 작업 흐름 (create_app 예시)
 
 ```
 1. 작업 이해
-   → docs/workflows/create-app.md 읽기
+   → /docs/WORKFLOWS.md (Phase-A 섹션) 읽기
    → 4 Phase 워크플로우 확인
 
 2. Phase 1: Planning
    → /guide/planning/01_idea.md 읽기
    → docs/planning/01_idea.md 생성 (500자 이상)
    → ... 9개 문서 생성
-   → docs/verification/phase1-planning.md로 자체 검증
-   → docs/protocols/phase-completion.md로 완료 신호
+   → /guide/verification/phase1_verification.md로 자체 검증
+   → /docs/PROTOCOLS.md (PHASE_COMPLETE)로 완료 신호
 
 3. 리뷰 대기
    → 사용자 승인 대기
+   → /docs/WORKFLOWS.md (Review Gate System)
 
 4. Phase 2: Design
    → /guide/design/01_screen.md 읽기
@@ -143,8 +154,8 @@ docs/
    → 완료 신호
 
 6. Phase 4: Testing
-   → 최종 검증
-   → 완료
+   → Verification Agent가 자동 검증
+   → /docs/WORKFLOWS.md (Phase 4 섹션)
 ```
 
 ## 📋 4가지 작업 타입
@@ -187,7 +198,7 @@ question: What pricing model?
 options: [Subscription, Freemium, Ad-based]
 [/USER_QUESTION]
 ```
-→ `docs/protocols/user-question.md` 참조
+→ `/docs/PROTOCOLS.md` (USER_QUESTION 섹션) 참조
 
 ### Phase 완료
 ```
@@ -197,7 +208,7 @@ Documents created:
 - docs/planning/01_idea.md
 - ...
 ```
-→ `docs/protocols/phase-completion.md` 참조
+→ `/docs/PROTOCOLS.md` (PHASE_COMPLETE 섹션) 참조
 
 ## 📝 산출물 규칙
 
@@ -207,7 +218,7 @@ Documents created:
 - **금지**: 플레이스홀더 (`[TODO]`, `[Insert X]`)
 - **필수**: 모든 섹션 완성
 
-→ `docs/deliverables/documents.md` 참조
+→ `/docs/WORKFLOWS.md` (산출물 규칙) 참조
 
 ### 코드
 - **구조**: 표준 프로젝트 구조
@@ -215,7 +226,7 @@ Documents created:
 - **문서**: README.md 포함
 - **테스트**: 주요 기능 테스트 포함
 
-→ `docs/deliverables/code.md` 참조
+→ `/docs/WORKFLOWS.md` (산출물 규칙) 참조
 
 ## ✅ 검증 기준
 
@@ -225,7 +236,7 @@ Documents created:
 - [ ] 플레이스홀더 없음
 - [ ] 일관된 정보
 
-→ `docs/verification/phase1-planning.md` 참조
+→ `/guide/verification/phase1_verification.md` 참조
 
 ### Phase 2 (설계)
 - [ ] 5개 문서 모두 존재
@@ -233,7 +244,7 @@ Documents created:
 - [ ] API 스펙 완전
 - [ ] 아키텍처 문서화
 
-→ `docs/verification/phase2-design.md` 참조
+→ `/guide/verification/phase2_verification.md` 참조
 
 ### Phase 3 (개발)
 - [ ] 프로젝트 구조 올바름
@@ -242,7 +253,7 @@ Documents created:
 - [ ] .env가 .gitignore에
 - [ ] 비밀 정보 하드코딩 없음
 
-→ `docs/verification/phase3-development.md` 참조
+→ `/guide/verification/phase3_verification.md` 참조
 
 ## 🔌 Optional Integrations 활용
 
@@ -334,30 +345,39 @@ Settings 조회 → vercel_token 없음:
 
 ## 📖 전체 문서 목록
 
-### Workflows (워크플로우)
-- `docs/workflows/README.md` - 워크플로우 개요
-- `docs/workflows/create-app.md` - 앱 생성
-- `docs/workflows/modify-app.md` - 앱 수정
-- `docs/workflows/workflow.md` - 워크플로우 자동화
-- `docs/workflows/custom.md` - 자유 형식
+### 루트 문서 (Root `/docs/`)
+**워크플로우 및 프로토콜**:
+- `/docs/WORKFLOWS.md` - 4가지 작업 타입 워크플로우 (Phase-A/B/C/D)
+- `/docs/PROTOCOLS.md` - 플랫폼-에이전트 통신 프로토콜
+- `/docs/ARCHITECTURE.md` - 3-tier 아키텍처 (Tier 3: Sub-Agent)
 
-### Protocols (프로토콜)
-- `docs/protocols/README.md` - 프로토콜 개요
-- `docs/protocols/user-question.md` - 사용자 질문
-- `docs/protocols/phase-completion.md` - Phase 완료
-- `docs/protocols/error-reporting.md` - 에러 보고
+**시스템 및 참조**:
+- `/docs/SETTINGS_SYSTEM.md` - 설정 시스템 (Optional Integrations)
+- `/docs/FEATURES.md` - 전체 기능 명세
+- `/docs/QUICK_START.md` - 빠른 시작 가이드
+- `/docs/GLOSSARY.md` - 용어 정의
 
-### Deliverables (산출물)
-- `docs/deliverables/README.md` - 산출물 개요
-- `docs/deliverables/documents.md` - 문서 작성 규칙
-- `docs/deliverables/code.md` - 코드 작성 규칙
-- `docs/deliverables/requirements.md` - 품질 요구사항
+### 가이드 문서 (Root `/guide/`)
+**Phase 1 기획** (9개):
+- `/guide/planning/01_idea.md` ~ `09_roadmap.md`
 
-### Verification (검증)
-- `docs/verification/README.md` - 검증 개요
-- `docs/verification/phase1-planning.md` - Phase 1 기준
-- `docs/verification/phase2-design.md` - Phase 2 기준
-- `docs/verification/phase3-development.md` - Phase 3 기준
+**Phase 2 설계** (5개):
+- `/guide/design/01_screen.md` ~ `05_architecture.md`
+
+**Phase 3 개발** (6개):
+- `/guide/development/01_setup.md` ~ `06_deploy.md`
+
+**검증 기준** (3개):
+- `/guide/verification/phase1_verification.md`
+- `/guide/verification/phase2_verification.md`
+- `/guide/verification/phase3_verification.md`
+
+### 패키지별 상세 문서 (계획 중)
+패키지별 상세 구현 문서는 현재 개발 중입니다.
+구현 시작 시 다음 구조로 작성될 예정:
+- `packages/sub-agent/docs/workflows/`
+- `packages/sub-agent/docs/protocols/`
+- `packages/sub-agent/docs/deliverables/`
 
 ## 💡 효율적인 작업 방법
 
@@ -394,29 +414,31 @@ Settings 조회 → vercel_token 없음:
 ## 🆘 문제 해결
 
 ### "무엇을 해야 할지 모르겠어요"
-→ `docs/workflows/[작업타입].md` 읽기
+→ `/docs/WORKFLOWS.md` (작업 타입별 워크플로우) 읽기
 
 ### "GitHub/Supabase 연동은 어떻게 하나요?"
 → 이 문서의 "🔌 Optional Integrations 활용" 섹션 참조
+→ `/docs/SETTINGS_SYSTEM.md` 참조
 → Settings에 있으면 자동 사용, 없으면 README에 수동 방법 문서화
 
 ### "사용자에게 질문해야 해요"
-→ `docs/protocols/user-question.md` 사용
+→ `/docs/PROTOCOLS.md` (USER_QUESTION 섹션) 사용
 
 ### "검증을 통과 못할 것 같아요"
-→ `docs/verification/phase[N]-*.md` 재확인
+→ `/guide/verification/phase[N]_verification.md` 재확인
 
 ## 🔄 다음 단계
 
-1. **`docs/README.md`** 읽기
-2. **`docs/workflows/README.md`** 읽기
-3. **작업 타입에 맞는 워크플로우** 읽기
-4. **가이드 문서** 참조하며 작업 시작
+1. **`/docs/WORKFLOWS.md`** (루트) 읽기
+2. **작업 타입에 맞는 워크플로우** 확인 (Phase-A/B/C/D)
+3. **`/guide/` 폴더** 가이드 문서 참조
+4. **작업 시작**
 
 ---
 
-**기억하세요**: 이 CLAUDE.md는 전체 개요입니다. 상세한 내용은 `docs/` 폴더와 `/guide/` 폴더를 참조하세요!
+**기억하세요**: 이 CLAUDE.md는 Tier 3 (Sub-Agent) 개요입니다. 상세한 내용은 루트 `/docs/` 폴더와 `/guide/` 폴더를 참조하세요!
 
 **문서 위치**:
-- 패키지 문서: `/packages/sub-agent/docs/`
-- 가이드 문서: `/guide/`
+- 이 파일: `/packages/sub-agent/CLAUDE.md`
+- 프로젝트 문서: 루트 `/docs/` (WORKFLOWS.md, PROTOCOLS.md, SETTINGS_SYSTEM.md 등)
+- 가이드 문서: 루트 `/guide/` (planning, design, development, verification)

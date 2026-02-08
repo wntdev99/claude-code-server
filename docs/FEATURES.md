@@ -453,11 +453,11 @@
     // 설정 시: Sub-agent가 자동으로 Vercel에 배포
     // 미설정 시: README에 수동 배포 방법 안내
 
-    // Workflow용 (MCP 서버)
+    // Workflow Integrations (for workflow task type)
     notion_token?: string;
     slack_bot_token?: string;
     slack_default_channel?: string;
-    // Workflow 타입 task에서만 사용
+    // Used only in Phase-C (workflow) tasks
   }
 
   L3. Sub-agent의 Settings 사용

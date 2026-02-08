@@ -132,6 +132,55 @@ interface OptionalIntegrations {
    - Document manual steps in README if not
 ```
 
+### Data Flow Diagram (데이터 흐름 다이어그램)
+
+Settings가 Web Server에서 Sub-Agent까지 전달되는 전체 데이터 흐름:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   Web Server (Tier 1)                           │
+│  - Settings stored in database (encrypted)                      │
+│  - User configures settings via UI                              │
+│  - Settings retrieved when creating task                        │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                          Settings Object
+                      {platform, integrations}
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Agent Manager (Tier 2)                          │
+│  - Receives settings from Web Server                            │
+│  - Converts to environment variables                            │
+│  - Injects into Sub-Agent process on spawn                      │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                       Environment Variables
+                  (GITHUB_TOKEN, SUPABASE_URL, etc.)
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Sub-Agent (Tier 3)                             │
+│  - Reads environment variables (read-only)                      │
+│  - Phase 3: Checks for optional integrations                    │
+│  - If configured → Use automated feature                        │
+│  - If missing → Graceful degradation                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**데이터 전달 방식 상세**:
+
+| Tier | Storage | Access Method | Notes |
+|------|---------|---------------|-------|
+| **Tier 1 (Web Server)** | Database (encrypted) | SQL queries | Settings encrypted at rest |
+| **Tier 2 (Agent Manager)** | In-memory (during spawn) | Process spawn args | Settings decrypted and injected |
+| **Tier 3 (Sub-Agent)** | Environment variables | `process.env.*` | Read-only access |
+
+**보안 고려사항**:
+- Web Server: Settings는 데이터베이스에 암호화되어 저장
+- Agent Manager: 메모리에서만 복호화 (로그에 출력 금지)
+- Sub-Agent: 환경 변수로 전달 (수정 불가)
+
 ### Read-Only Access (읽기 전용 접근)
 
 Sub-Agents can **READ** settings but **CANNOT MODIFY** them.
