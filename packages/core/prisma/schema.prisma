@@ -1,0 +1,81 @@
+// Claude Code Server - Database Schema
+// Matches: IMPLEMENTATION_PLAN.md, docs/API.md, docs/ARCHITECTURE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Core Models
+// ============================================================
+
+model Task {
+  id           String     @id @default(cuid())
+  title        String
+  type         String     // TaskType: create_app, modify_app, workflow, custom
+  status       String     @default("draft") // TaskStatus: draft, pending, in_progress, review, completed, failed
+  description  String
+  currentPhase Int?
+  progress     Int        @default(0)
+  workspace    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  reviews     Review[]
+  questions   Question[]
+  checkpoints Checkpoint[]
+  logs        Log[]
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  taskId       String
+  phase        Int
+  status       String   @default("pending") // ReviewStatus: pending, in_review, approved, changes_requested
+  deliverables String   // JSON string (SQLite doesn't support Json type natively)
+  feedback     String?
+  createdAt    DateTime @default(now())
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id         String    @id @default(cuid())
+  taskId     String
+  category   String    // business, clarification, choice, confirmation
+  question   String
+  options    String    // JSON string array (SQLite compatibility)
+  answer     String?
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Checkpoint {
+  id        String   @id @default(cuid())
+  taskId    String
+  reason    String   // interval, rate_limit, error, manual, phase_complete
+  state     String   // JSON string (SQLite compatibility)
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  taskId    String
+  level     String   @default("info") // info, warn, error, debug
+  message   String
+  metadata  String?  // JSON string (optional extra data)
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Settings {
+  key       String   @id
+  value     String   // encrypted for sensitive values
+  updatedAt DateTime @updatedAt
+}
