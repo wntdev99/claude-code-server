@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { AgentManager } from '@claude-code-server/agent-manager';
-import { ensureWorkspace, getWorkspacePath } from '@claude-code-server/shared';
+import {
+  AgentManager,
+  WorkflowEngine,
+  DeliverableCollector,
+  VerificationAgent,
+  getPhaseDefinition,
+  hasReviewGate,
+  isLastPhase,
+} from '@claude-code-server/agent-manager';
+import { ensureWorkspace } from '@claude-code-server/shared';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -49,6 +57,9 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     });
 
     // Handle protocol events
+    const collector = new DeliverableCollector();
+    const verifier = new VerificationAgent();
+
     agentManager.on(`protocol:${id}`, async (protocol: { type: string; [key: string]: unknown }) => {
       try {
         if (protocol.type === 'USER_QUESTION') {
@@ -61,17 +72,55 @@ export async function POST(_req: NextRequest, context: RouteContext) {
             },
           });
         } else if (protocol.type === 'PHASE_COMPLETE') {
+          const phase = protocol.phase as number;
+          const taskType = task.type;
+
+          // Collect deliverables from workspace
+          let deliverables: { path: string; content: string; size: number }[] = [];
+          try {
+            const phaseDef = getPhaseDefinition(taskType, phase);
+            if (phaseDef.deliverableDir) {
+              deliverables = collector.collect(workspace, phaseDef.deliverableDir);
+            }
+
+            // Run verification for structured workflows
+            if (hasReviewGate(taskType)) {
+              const result = verifier.verify(deliverables, phaseDef);
+              if (!result.passed && verifier.shouldAutoRework(result)) {
+                // Auto-rework: send feedback to agent and let it retry
+                const feedback = verifier.generateFeedback(result);
+                agentManager.requestRework(id, feedback);
+                await prisma.log.create({
+                  data: {
+                    taskId: id,
+                    level: 'warn',
+                    message: `[verification] Auto-rework triggered: ${feedback}`,
+                  },
+                });
+                return; // Don't create review yet
+              }
+            }
+          } catch {
+            // Verification failure shouldn't block review creation
+          }
+
+          // Create review with collected deliverables
+          const deliverableSummary = deliverables.map((d) => ({
+            path: d.path,
+            size: d.size,
+          }));
+
           await prisma.review.create({
             data: {
               taskId: id,
-              phase: protocol.phase as number,
+              phase,
               status: 'pending',
-              deliverables: JSON.stringify(protocol.documents || []),
+              deliverables: JSON.stringify(deliverableSummary),
             },
           });
           await prisma.task.update({
             where: { id },
-            data: { currentPhase: protocol.phase as number, status: 'review' },
+            data: { currentPhase: phase, status: 'review' },
           });
         }
       } catch {
@@ -95,13 +144,34 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       agentManager.removeAllListeners(`protocol:${id}`);
     });
 
-    await agentManager.executeTask(id, task.description, {
-      workspace,
-      env: {
-        TASK_TYPE: task.type,
-        TASK_TITLE: task.title,
-      },
-    });
+    // Execute based on task type
+    if (task.type === 'custom') {
+      // Custom: direct single-phase execution
+      await agentManager.executeTask(id, task.description, {
+        workspace,
+        env: {
+          TASK_TYPE: task.type,
+          TASK_TITLE: task.title,
+        },
+      });
+    } else {
+      // Structured workflows: use WorkflowEngine for phase-based execution
+      const workflowEngine = new WorkflowEngine(agentManager);
+      const startPhase = task.currentPhase || 1;
+      const guideRoot = process.env.GUIDE_ROOT || process.cwd();
+
+      await workflowEngine.executePhase(
+        {
+          taskId: id,
+          taskType: task.type,
+          title: task.title,
+          description: task.description,
+          workspace,
+          guideRoot,
+        },
+        startPhase
+      );
+    }
 
     return NextResponse.json({ success: true, data: { status: 'in_progress' } });
   } catch (error) {
