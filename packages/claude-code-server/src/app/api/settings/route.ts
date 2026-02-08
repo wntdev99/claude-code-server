@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { ENCRYPTED_SETTINGS } from '@claude-code-server/shared';
+import { ENCRYPTED_SETTINGS, VALID_SETTINGS_KEYS } from '@claude-code-server/shared';
 import { encryptSecret, decryptSecret } from '@claude-code-server/shared';
 
 function maskValue(key: string, value: string): string {
@@ -53,8 +53,15 @@ export async function PATCH(req: NextRequest) {
     }
 
     const results = [];
+    const invalid: string[] = [];
     for (const [key, value] of Object.entries(body)) {
       if (typeof value !== 'string') continue;
+
+      // Validate key against known settings
+      if (!VALID_SETTINGS_KEYS.includes(key)) {
+        invalid.push(key);
+        continue;
+      }
 
       // Encrypt sensitive values before storage
       const storedValue = shouldEncrypt(key) ? encryptSecret(value) : value;
@@ -65,6 +72,14 @@ export async function PATCH(req: NextRequest) {
         create: { key, value: storedValue },
       });
       results.push({ key: setting.key, updatedAt: setting.updatedAt });
+    }
+
+    if (invalid.length > 0) {
+      return NextResponse.json({
+        success: true,
+        data: results,
+        warnings: `Unknown settings keys ignored: ${invalid.join(', ')}`,
+      });
     }
 
     return NextResponse.json({ success: true, data: results });

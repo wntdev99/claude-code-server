@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { AGENT_GRACEFUL_SHUTDOWN_MS } from '@claude-code-server/shared';
 
 export interface AgentProcessOptions {
   cwd: string;
@@ -95,7 +96,7 @@ export class AgentProcess extends EventEmitter {
    * Gracefully terminate the agent process (SIGTERM).
    * Falls back to SIGKILL after timeout.
    */
-  async terminate(timeoutMs = 5000): Promise<void> {
+  async terminate(timeoutMs = AGENT_GRACEFUL_SHUTDOWN_MS): Promise<void> {
     if (!this.process) return;
 
     return new Promise<void>((resolve) => {

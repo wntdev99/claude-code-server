@@ -306,19 +306,31 @@ export interface TokenUsage {
   estimatedCost: number; // USD
 }
 
-// Known settings keys with metadata for validation
+// Known settings keys with metadata for validation (docs/SETTINGS_SYSTEM.md)
 export const SettingsKeys = {
   CLAUDE_MODEL: 'claude_model',
   CLAUDE_MAX_TOKENS: 'claude_max_tokens',
-  GITHUB_TOKEN: 'github_token',
-  VERCEL_TOKEN: 'vercel_token',
+  CLAUDE_AUTO_ACCEPT: 'claude_auto_accept',
   OUTPUT_DIRECTORY: 'output_directory',
   ENCRYPTION_KEY: 'encryption_key',
+  GITHUB_TOKEN: 'github_token',
+  VERCEL_TOKEN: 'vercel_token',
+  SUPABASE_URL: 'supabase_url',
+  SUPABASE_ANON_KEY: 'supabase_anon_key',
+  NOTION_TOKEN: 'notion_token',
+  SLACK_BOT_TOKEN: 'slack_bot_token',
+  SLACK_DEFAULT_CHANNEL: 'slack_default_channel',
 } as const;
+
+// All valid setting keys (for validation)
+export const VALID_SETTINGS_KEYS: string[] = Object.values(SettingsKeys);
 
 // Settings that should be encrypted when stored
 export const ENCRYPTED_SETTINGS: string[] = [
   SettingsKeys.GITHUB_TOKEN,
   SettingsKeys.VERCEL_TOKEN,
   SettingsKeys.ENCRYPTION_KEY,
+  SettingsKeys.SUPABASE_ANON_KEY,
+  SettingsKeys.NOTION_TOKEN,
+  SettingsKeys.SLACK_BOT_TOKEN,
 ];

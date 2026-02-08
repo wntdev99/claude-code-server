@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
-import { getWorkspacePath } from '@claude-code-server/shared';
+import { getWorkspacePath, sanitizeInput } from '@claude-code-server/shared';
 
 const CreateTaskSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
 
     const task = await prisma.task.create({
       data: {
-        title: validated.title,
+        title: sanitizeInput(validated.title),
         type: validated.type,
-        description: validated.description,
+        description: sanitizeInput(validated.description),
         status: 'draft',
         workspace: '', // Will be set on execute
       },

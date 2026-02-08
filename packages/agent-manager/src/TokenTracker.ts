@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { DEFAULT_MODEL } from '@claude-code-server/shared';
 import type { TokenUsage } from '@claude-code-server/shared';
 
 // Approximate token costs per model (USD per 1M tokens)
@@ -24,7 +25,7 @@ export class TokenTracker extends EventEmitter {
   private usageMap = new Map<string, TokenUsage>();
   private model: string;
 
-  constructor(model: string = 'claude-sonnet-4-5') {
+  constructor(model: string = DEFAULT_MODEL) {
     super();
     this.model = model;
   }

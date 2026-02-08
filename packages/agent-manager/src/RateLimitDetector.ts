@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { DEFAULT_RATE_LIMIT_COOLDOWN_MS } from '@claude-code-server/shared';
 import type { RateLimitInfo } from '@claude-code-server/shared';
 
 // Common rate limit error patterns from Claude API
@@ -25,7 +26,7 @@ export class RateLimitDetector extends EventEmitter {
   private resumeTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly defaultCooldownMs: number;
 
-  constructor(defaultCooldownMs: number = 60_000) {
+  constructor(defaultCooldownMs: number = DEFAULT_RATE_LIMIT_COOLDOWN_MS) {
     super();
     this.defaultCooldownMs = defaultCooldownMs;
   }

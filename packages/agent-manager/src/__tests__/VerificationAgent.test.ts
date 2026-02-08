@@ -81,6 +81,33 @@ describe('VerificationAgent', () => {
       expect(result.passed).toBe(false);
     });
 
+    it('detects [WIP] placeholder', () => {
+      const deliverables = [
+        makeDeliverable({ content: 'A'.repeat(600) + '\n[WIP] Not finished' }),
+      ];
+      const phaseDef = makePhaseDef({ expectedDeliverables: 1 });
+      const result = verifier.verify(deliverables, phaseDef);
+      expect(result.passed).toBe(false);
+    });
+
+    it('detects [FIXME] placeholder', () => {
+      const deliverables = [
+        makeDeliverable({ content: 'A'.repeat(600) + '\n[FIXME] Broken section' }),
+      ];
+      const phaseDef = makePhaseDef({ expectedDeliverables: 1 });
+      const result = verifier.verify(deliverables, phaseDef);
+      expect(result.passed).toBe(false);
+    });
+
+    it('detects [DRAFT] placeholder', () => {
+      const deliverables = [
+        makeDeliverable({ content: 'A'.repeat(600) + '\n[DRAFT] Preliminary content' }),
+      ];
+      const phaseDef = makePhaseDef({ expectedDeliverables: 1 });
+      const result = verifier.verify(deliverables, phaseDef);
+      expect(result.passed).toBe(false);
+    });
+
     it('handles variable deliverable count (expectedDeliverables = -1)', () => {
       const deliverables = [makeDeliverable()];
       const phaseDef = makePhaseDef({ expectedDeliverables: -1 });

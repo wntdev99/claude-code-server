@@ -16,10 +16,14 @@ export interface VerificationIssue {
 // Common placeholder patterns to detect incomplete deliverables
 const PLACEHOLDER_PATTERNS = [
   /\[TODO\]/i,
+  /\(TODO\)/i,
   /\[INSERT .+\]/i,
   /\[PLACEHOLDER\]/i,
+  /\[WIP\]/i,
+  /\[DRAFT\]/i,
+  /\[FIXME\]/i,
   /Lorem ipsum/i,
-  /TBD/,
+  /\bTBD\b/,
   /To be determined/i,
   /Fill in later/i,
   /\.\.\.\s*$/m, // Lines ending with just "..."

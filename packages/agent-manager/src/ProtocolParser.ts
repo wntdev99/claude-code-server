@@ -40,6 +40,8 @@ import type {
  *   recovery: pause_and_retry | checkpoint_and_fail
  *   [/ERROR]
  */
+const MAX_BUFFER_SIZE = 64 * 1024; // 64KB - large enough for protocol messages
+
 export class ProtocolParser {
   private buffer = '';
 
@@ -80,9 +82,25 @@ export class ProtocolParser {
     }
     this.buffer = this.buffer.replace(phaseRegex, '');
 
-    // Prevent unbounded buffer growth - keep only last 4KB
-    if (this.buffer.length > 4096) {
-      this.buffer = this.buffer.slice(-4096);
+    // Prevent unbounded buffer growth.
+    // Only truncate if no partial protocol markers remain (to avoid splitting messages).
+    if (this.buffer.length > MAX_BUFFER_SIZE) {
+      const hasPartialMarker =
+        this.buffer.includes('[USER_QUESTION]') ||
+        this.buffer.includes('[ERROR]') ||
+        this.buffer.includes('=== PHASE');
+      if (hasPartialMarker) {
+        // Keep from the earliest marker to avoid splitting
+        const markers = [
+          this.buffer.indexOf('[USER_QUESTION]'),
+          this.buffer.indexOf('[ERROR]'),
+          this.buffer.indexOf('=== PHASE'),
+        ].filter((i) => i >= 0);
+        const earliest = Math.min(...markers);
+        this.buffer = this.buffer.slice(earliest);
+      } else {
+        this.buffer = '';
+      }
     }
 
     return protocols;
