@@ -1,6 +1,71 @@
-# Dependency System (의존성 시스템)
+# ⚠️ DEPRECATED: Dependency System (의존성 시스템)
 
-이 문서는 Claude Code Server의 의존성 요청 및 주입 시스템을 상세히 설명합니다.
+> **🚫 WARNING: This feature is DEPRECATED and should NOT be used for new implementations.**
+>
+> **⚠️ 경고: 이 기능은 사용 중단(DEPRECATED)되었으며 신규 구현에 사용하면 안 됩니다.**
+
+---
+
+## 🛑 Deprecation Notice (사용 중단 공지)
+
+**Status**: ❌ DEPRECATED (Deprecated since: 2025-02-07)
+
+**Replacement**: ✅ **Settings System** (see [FEATURES.md](FEATURES.md) - "Optional Integrations" section)
+
+**Reason for Deprecation**:
+- The DEPENDENCY_REQUEST protocol adds unnecessary complexity
+- Settings system provides better user experience with upfront configuration
+- Clearer architecture with settings managed in one place
+- Avoids agent pause/resume cycles during execution
+
+**이 시스템이 사용 중단된 이유**:
+- DEPENDENCY_REQUEST 프로토콜이 불필요한 복잡성을 추가함
+- Settings 시스템이 사전 구성을 통해 더 나은 사용자 경험 제공
+- 한 곳에서 설정을 관리하는 더 명확한 아키텍처
+- 실행 중 에이전트 일시중지/재개 사이클 방지
+
+---
+
+## ⛔ Do NOT Use This Documentation If:
+
+- ❌ You are implementing **new features** → Use Settings system instead
+- ❌ You are building **new integrations** → Use Settings system instead
+- ❌ You are **learning** the system → Skip this document, read [FEATURES.md](FEATURES.md)
+
+## ✅ Only Use This Documentation If:
+
+- ✅ You are **maintaining legacy code** that still uses DEPENDENCY_REQUEST
+- ✅ You are **migrating** from Dependency System to Settings System
+- ✅ You are **debugging** existing dependency-related issues
+
+---
+
+## 🔄 Migration Guide
+
+**For New Implementations**:
+```
+DO NOT implement DEPENDENCY_REQUEST protocol
+→ Use Settings system (documented in FEATURES.md)
+→ Configure optional integrations in task settings
+→ Settings are injected before agent starts
+```
+
+**For Existing Code**:
+```
+1. Identify all DEPENDENCY_REQUEST usages
+2. Replace with Settings configuration
+3. Update agent code to read from environment variables (already injected)
+4. Remove DEPENDENCY_REQUEST protocol code
+5. Test with Settings system
+```
+
+---
+
+## 📚 Historical Documentation (히스토리 문서)
+
+**이하 내용은 히스토리 참조용입니다. 신규 구현에 사용하지 마세요.**
+
+**The content below is for historical reference only. DO NOT use for new implementations.**
 
 ---
 

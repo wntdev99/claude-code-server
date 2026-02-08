@@ -4,6 +4,21 @@
 
 ---
 
+## ⚠️ IMPORTANT: Deprecated Protocol Notice
+
+> **🚫 WARNING: The DEPENDENCY_REQUEST protocol (Section 1) is DEPRECATED.**
+>
+> **Use the Settings System instead**: See [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md) for the recommended approach.
+>
+> **Why deprecated**:
+> - Settings System provides better UX with upfront configuration
+> - Avoids agent pause/resume cycles during execution
+> - Simpler architecture with centralized settings management
+>
+> **Section 1 (DEPENDENCY_REQUEST)** is kept for historical reference only. **DO NOT implement this protocol in new code**.
+
+---
+
 ## 개요
 
 ### 통신 방식
@@ -35,7 +50,13 @@ key: value
 
 ---
 
-## 1. DEPENDENCY_REQUEST (의존성 요청)
+## 1. DEPENDENCY_REQUEST (의존성 요청) - ⚠️ DEPRECATED
+
+> **🚫 This protocol is DEPRECATED. Use Settings System instead.**
+>
+> See [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md) for the recommended approach.
+>
+> This section is kept for historical reference and backward compatibility only.
 
 ### 목적
 
@@ -504,6 +525,100 @@ recovery: checkpoint_and_fail
 
 ---
 
+## 5. CUSTOM_TASK_COMPLETE (Type-D 작업 완료)
+
+### 목적
+
+Type-D (custom) 작업이 완료되었음을 알립니다. Type-D 작업은 구조화된 페이즈가 없는 자유 형식 대화 작업입니다.
+
+### 형식
+
+```
+=== CUSTOM TASK COMPLETE ===
+```
+
+또는 상세 버전:
+
+```
+=== CUSTOM TASK COMPLETE ===
+Task: [간단한 작업 설명]
+Summary: [수행한 작업 요약]
+```
+
+### Type-D vs Phase-A/B/C 완료 신호 차이
+
+| 워크플로우 | 완료 신호 | 페이즈 구조 |
+|-----------|---------|----------|
+| **Phase-A/B/C** | `=== PHASE N COMPLETE ===` | 구조화된 4단계 페이즈 |
+| **Type-D** | `=== CUSTOM TASK COMPLETE ===` | 페이즈 없음 (단일 실행) |
+
+### 처리 흐름
+
+```
+1. Sub-Agent가 CUSTOM_TASK_COMPLETE 출력
+2. Agent Manager가 감지
+3. Agent 프로세스 정상 종료
+4. Task 상태를 'completed'로 변경
+5. 사용자에게 완료 알림
+6. 후속 대화 가능 (선택사항)
+```
+
+### 예시
+
+#### 예시 1: 설명 요청
+```javascript
+// 사용자: "JWT 인증이 어떻게 작동하는지 설명해주세요"
+// Agent가 설명 제공 후:
+
+console.log('=== CUSTOM TASK COMPLETE ===');
+console.log('Task: JWT authentication explanation');
+console.log('Summary: Explained JWT structure, signing, and verification process');
+```
+
+#### 예시 2: 코드 생성
+```javascript
+// 사용자: "이메일 검증 함수 작성"
+// Agent가 함수 생성 후:
+
+console.log('=== CUSTOM TASK COMPLETE ===');
+console.log('Task: Email validation function');
+console.log('Summary: Created regex-based email validation with test cases');
+```
+
+#### 예시 3: 디버깅 도움
+```javascript
+// 사용자: "이 오류가 왜 발생하나요?"
+// Agent가 원인 및 해결책 제공 후:
+
+console.log('=== CUSTOM TASK COMPLETE ===');
+console.log('Task: Debug TypeError');
+console.log('Summary: Identified null reference issue and provided fix');
+```
+
+### 선택사항: 후속 대화
+
+Type-D 작업은 완료 후에도 대화를 계속할 수 있습니다:
+
+```
+User: "JWT 인증 설명해주세요"
+Agent: [설명 제공]
+Agent: "=== CUSTOM TASK COMPLETE ==="
+
+User: "그럼 refresh token은 어떻게 작동하나요?"
+Agent: [추가 설명 제공]
+Agent: "=== CUSTOM TASK COMPLETE ==="
+```
+
+### 검증 없음
+
+Type-D 작업은 공식 검증 또는 리뷰 게이트가 없습니다:
+- ❌ Verification Agent 실행 안 됨
+- ❌ 리뷰 생성 안 됨
+- ❌ 재작업 프로세스 없음
+- ✅ 사용자 만족도가 유일한 품질 기준
+
+---
+
 ## 프로토콜 우선순위
 
 Agent Manager는 다음 우선순위로 프로토콜을 처리합니다:
@@ -512,10 +627,10 @@ Agent Manager는 다음 우선순위로 프로토콜을 처리합니다:
 1. ERROR (최우선)
    → 즉시 처리 및 복구 시도
 
-2. PHASE_COMPLETE
-   → Phase 종료 처리
+2. PHASE_COMPLETE / CUSTOM_TASK_COMPLETE
+   → Phase 종료 처리 또는 Type-D 작업 완료
 
-3. DEPENDENCY_REQUEST
+3. DEPENDENCY_REQUEST (⚠️ Deprecated - use Settings instead)
    → 실행 차단
 
 4. USER_QUESTION
@@ -524,6 +639,8 @@ Agent Manager는 다음 우선순위로 프로토콜을 처리합니다:
 5. 일반 로그
    → 기록만
 ```
+
+**참고**: `PHASE_COMPLETE`는 Phase-A/B/C 워크플로우에서 사용되며, `CUSTOM_TASK_COMPLETE`는 Type-D 워크플로우에서 사용됩니다.
 
 ---
 

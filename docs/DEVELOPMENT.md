@@ -1,53 +1,53 @@
-# Development Guide
+# 개발 가이드
 
-## Overview
+## 개요
 
-This guide covers setting up the development environment, project structure, coding conventions, testing strategies, and deployment procedures for the Claude Code Server.
+이 가이드는 Claude Code Server의 개발 환경 설정, 프로젝트 구조, 코딩 규칙, 테스팅 전략 및 배포 절차를 다룹니다.
 
-## Prerequisites
+## 사전 요구 사항
 
-### Required Software
+### 필수 소프트웨어
 
-- **Node.js**: 18.x or higher
-- **npm**: 9.x or higher (comes with Node.js)
-- **Git**: 2.x or higher
-- **Claude Code CLI**: Latest version (install and authenticate with `claude login`)
+- **Node.js**: 18.x 이상
+- **npm**: 9.x 이상 (Node.js와 함께 제공)
+- **Git**: 2.x 이상
+- **Claude Code CLI**: 최신 버전 (설치 후 `claude login`으로 인증)
 
-### Optional Software
+### 선택 소프트웨어
 
-- **Docker**: For containerized development
-- **PostgreSQL**: For production database (SQLite for dev)
-- **Redis**: For distributed queue (optional)
+- **Docker**: 컨테이너화된 개발용
+- **PostgreSQL**: 프로덕션 데이터베이스용 (개발은 SQLite)
+- **Redis**: 분산 큐용 (선택 사항)
 
-## Getting Started
+## 시작하기
 
-### 1. Clone Repository
+### 1. 저장소 클론
 
 ```bash
 git clone https://github.com/yourusername/claude-code-server.git
 cd claude-code-server
 ```
 
-### 2. Install Dependencies
+### 2. 의존성 설치
 
 ```bash
-# Install all dependencies (monorepo)
+# 모든 의존성 설치 (monorepo)
 npm install
 
-# Or install for specific package
+# 또는 특정 패키지만 설치
 cd packages/claude-code-server
 npm install
 ```
 
-### 3. Environment Configuration
+### 3. 환경 설정
 
-Create `.env` file in the root:
+루트에 `.env` 파일 생성:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+`.env` 편집:
 
 ```env
 # Claude Code CLI Configuration (CLI handles auth separately)
@@ -74,34 +74,34 @@ SUPABASE_ANON_KEY=...
 GITHUB_TOKEN=ghp_...
 ```
 
-**Note**: Claude Code CLI uses its own authentication. Make sure to run `claude login` before starting the server.
+**참고**: Claude Code CLI는 자체 인증을 사용합니다. 서버를 시작하기 전에 `claude login`을 실행하세요.
 
-### 4. Database Setup
+### 4. 데이터베이스 설정
 
 ```bash
-# Initialize database
+# 데이터베이스 초기화
 npx prisma migrate dev --name init
 
-# Generate Prisma client
+# Prisma 클라이언트 생성
 npx prisma generate
 
-# (Optional) Seed database
+# (선택) 데이터베이스 시드
 npx prisma db seed
 ```
 
-### 5. Start Development Server
+### 5. 개발 서버 시작
 
 ```bash
-# Start Next.js development server
+# Next.js 개발 서버 시작
 npm run dev
 
-# Or start with turbo (if using turborepo)
+# 또는 turbo로 시작 (turborepo 사용 시)
 npm run dev --workspace=@claude-platform/web
 ```
 
-Server will start at `http://localhost:3000`
+서버는 `http://localhost:3000`에서 시작됩니다
 
-## Project Structure
+## 프로젝트 구조
 
 ```
 claude-code-server/
@@ -174,69 +174,69 @@ claude-code-server/
 └── README.md
 ```
 
-## Development Workflow
+## 개발 워크플로
 
-### 1. Create Feature Branch
+### 1. 기능 브랜치 생성
 
 ```bash
 git checkout -b feature/task-queue-management
 ```
 
-### 2. Make Changes
+### 2. 변경 사항 작성
 
-Follow coding conventions (see below)
+코딩 규칙 준수 (아래 참조)
 
-### 3. Test Changes
+### 3. 변경 사항 테스트
 
 ```bash
-# Run unit tests
+# 단위 테스트 실행
 npm run test
 
-# Run integration tests
+# 통합 테스트 실행
 npm run test:integration
 
-# Run e2e tests
+# e2e 테스트 실행
 npm run test:e2e
 
-# Run all tests
+# 모든 테스트 실행
 npm run test:all
 ```
 
-### 4. Commit Changes
+### 4. 변경 사항 커밋
 
 ```bash
 git add .
 git commit -m "feat: add task queue management"
 
-# Follow conventional commits:
-# feat: new feature
-# fix: bug fix
-# docs: documentation
-# refactor: code refactoring
-# test: add/update tests
-# chore: maintenance
+# Conventional commits 준수:
+# feat: 새 기능
+# fix: 버그 수정
+# docs: 문서화
+# refactor: 코드 리팩토링
+# test: 테스트 추가/업데이트
+# chore: 유지보수
 ```
 
-### 5. Push and Create PR
+### 5. Push 및 PR 생성
 
 ```bash
 git push origin feature/task-queue-management
 
-# Create pull request on GitHub
-# Request review from team
+# GitHub에서 pull request 생성
+# 팀에 리뷰 요청
 ```
 
-## Coding Conventions
+## 코딩 규칙
 
 ### TypeScript
 
-**General Rules**:
-- Use TypeScript strictly - avoid `any`
-- Define interfaces for all data structures
-- Use proper types for function parameters and returns
-- Export types from dedicated `types/` directories
+**일반 규칙**:
+- TypeScript를 엄격하게 사용 - `any` 피하기
+- 모든 데이터 구조에 대한 인터페이스 정의
+- 함수 매개변수 및 반환값에 적절한 타입 사용
+- 전용 `types/` 디렉토리에서 타입 내보내기
 
-**Example**:
+**예시**:
 ```typescript
 // Good
 interface Task {
@@ -255,14 +255,14 @@ function createTask(data: any): any {
 }
 ```
 
-### Next.js Conventions
+### Next.js 규칙
 
-**File Naming**:
-- Routes: lowercase with hyphens (`task-list`, `user-profile`)
-- Components: PascalCase (`TaskCard.tsx`, `UserProfile.tsx`)
-- Utilities: camelCase (`formatDate.ts`, `validatePath.ts`)
+**파일 명명**:
+- 라우트: 하이픈을 사용한 소문자 (`task-list`, `user-profile`)
+- 컴포넌트: PascalCase (`TaskCard.tsx`, `UserProfile.tsx`)
+- 유틸리티: camelCase (`formatDate.ts`, `validatePath.ts`)
 
-**Server vs Client Components**:
+**서버 vs 클라이언트 컴포넌트**:
 ```typescript
 // Server Component (default)
 async function TaskPage({ params }: { params: { id: string } }) {
@@ -278,7 +278,7 @@ function TaskList() {
 }
 ```
 
-**API Routes**:
+**API 라우트**:
 ```typescript
 // app/api/tasks/route.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -295,9 +295,9 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-### React Component Conventions
+### React 컴포넌트 규칙
 
-**Component Structure**:
+**컴포넌트 구조**:
 ```typescript
 // components/tasks/TaskCard.tsx
 import { Task } from '@/types';
@@ -319,12 +319,12 @@ export function TaskCard({ task, onSelect }: TaskCardProps) {
 }
 ```
 
-**Props Naming**:
-- Event handlers: `onSelect`, `onClick`, `onChange`
+**Props 명명**:
+- 이벤트 핸들러: `onSelect`, `onClick`, `onChange`
 - Boolean props: `isLoading`, `hasError`, `canEdit`
-- Optional props: `className?`, `children?`
+- 선택적 props: `className?`, `children?`
 
-### State Management (Zustand)
+### 상태 관리 (Zustand)
 
 ```typescript
 // lib/store/tasks.ts
@@ -347,9 +347,9 @@ export const useTaskStore = create<TaskStore>((set) => ({
 }));
 ```
 
-### Error Handling
+### 오류 처리
 
-**API Routes**:
+**API 라우트**:
 ```typescript
 export async function POST(request: NextRequest) {
   try {
@@ -377,7 +377,7 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-**Client Components**:
+**클라이언트 컴포넌트**:
 ```typescript
 'use client';
 function TaskList() {
@@ -408,9 +408,9 @@ function TaskList() {
 }
 ```
 
-## Testing
+## 테스팅
 
-### Unit Tests (Jest)
+### 단위 테스트 (Jest)
 
 ```typescript
 // __tests__/utils/validatePath.test.ts
@@ -427,7 +427,7 @@ describe('validatePath', () => {
 });
 ```
 
-### Integration Tests
+### 통합 테스트
 
 ```typescript
 // __tests__/api/tasks.test.ts
@@ -454,7 +454,7 @@ describe('POST /api/tasks', () => {
 });
 ```
 
-### E2E Tests (Playwright)
+### E2E 테스트 (Playwright)
 
 ```typescript
 // e2e/tasks.spec.ts
@@ -485,51 +485,51 @@ test('create and execute task', async ({ page }) => {
 });
 ```
 
-### Running Tests
+### 테스트 실행
 
 ```bash
-# Unit tests
+# 단위 테스트
 npm run test
 
-# Watch mode
+# Watch 모드
 npm run test:watch
 
-# Coverage
+# 커버리지
 npm run test:coverage
 
-# Integration tests
+# 통합 테스트
 npm run test:integration
 
-# E2E tests
+# E2E 테스트
 npm run test:e2e
 
-# All tests
+# 모든 테스트
 npm run test:all
 ```
 
-## Database Management
+## 데이터베이스 관리
 
-### Schema Changes
+### 스키마 변경
 
 ```bash
-# Create migration
+# 마이그레이션 생성
 npx prisma migrate dev --name add_checkpoints_table
 
-# Apply migrations
+# 마이그레이션 적용
 npx prisma migrate deploy
 
-# Reset database (dev only)
+# 데이터베이스 재설정 (개발 환경만)
 npx prisma migrate reset
 ```
 
 ### Prisma Studio
 
 ```bash
-# Open Prisma Studio (database GUI)
+# Prisma Studio 열기 (데이터베이스 GUI)
 npx prisma studio
 ```
 
-### Seeding
+### 시드
 
 ```typescript
 // prisma/seed.ts
@@ -551,56 +551,56 @@ async function main() {
 main();
 ```
 
-## Debugging
+## 디버깅
 
-### Server-side Debugging
+### 서버 사이드 디버깅
 
 ```bash
-# Enable debug logs
+# 디버그 로그 활성화
 DEBUG=* npm run dev
 
 # Node.js inspector
 node --inspect node_modules/.bin/next dev
 ```
 
-Then open `chrome://inspect` in Chrome
+그런 다음 Chrome에서 `chrome://inspect` 열기
 
-### Client-side Debugging
+### 클라이언트 사이드 디버깅
 
-- Use React Developer Tools browser extension
-- Use browser DevTools console
-- Add `debugger;` statements in code
+- React Developer Tools 브라우저 확장 프로그램 사용
+- 브라우저 DevTools 콘솔 사용
+- 코드에 `debugger;` 문 추가
 
-### Agent Output Debugging
+### 에이전트 출력 디버깅
 
-Agent logs are stored in:
-- Memory during execution
-- File: `logs/{taskId}.jsonl` (persistent)
+에이전트 로그 저장 위치:
+- 실행 중 메모리
+- 파일: `logs/{taskId}.jsonl` (영구)
 
-View logs:
+로그 보기:
 ```bash
-# Tail agent logs
+# 에이전트 로그 tail
 tail -f logs/task_123.jsonl
 
-# View specific task logs
+# 특정 작업 로그 보기
 cat logs/task_123.jsonl | jq .
 ```
 
-## Building for Production
+## 프로덕션 빌드
 
-### Build
+### 빌드
 
 ```bash
-# Build all packages
+# 모든 패키지 빌드
 npm run build
 
-# Build specific package
+# 특정 패키지 빌드
 npm run build --workspace=@claude-platform/web
 ```
 
-### Environment Variables
+### 환경 변수
 
-Create `.env.production`:
+`.env.production` 생성:
 
 ```env
 DATABASE_URL=postgresql://user:password@host:5432/dbname
@@ -613,26 +613,26 @@ CLAUDE_MODEL=claude-sonnet-4-5
 CLAUDE_MAX_TOKENS=8000
 ```
 
-**Note**: Make sure Claude Code CLI is authenticated on the production server with `claude login`.
+**참고**: 프로덕션 서버에서 `claude login`으로 Claude Code CLI가 인증되었는지 확인하세요.
 
-### Start Production Server
+### 프로덕션 서버 시작
 
 ```bash
 npm run start
 ```
 
-## Deployment
+## 배포
 
-### Vercel (Recommended for Next.js)
+### Vercel (Next.js 권장)
 
 ```bash
-# Install Vercel CLI
+# Vercel CLI 설치
 npm i -g vercel
 
-# Deploy
+# 배포
 vercel
 
-# Production deploy
+# 프로덕션 배포
 vercel --prod
 ```
 
@@ -655,7 +655,7 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-Build and run:
+빌드 및 실행:
 ```bash
 docker build -t claude-task-platform .
 docker run -p 3000:3000 --env-file .env.production claude-task-platform
@@ -664,24 +664,24 @@ docker run -p 3000:3000 --env-file .env.production claude-task-platform
 ### Railway
 
 ```bash
-# Install Railway CLI
+# Railway CLI 설치
 npm i -g @railway/cli
 
-# Login
+# 로그인
 railway login
 
-# Initialize
+# 초기화
 railway init
 
-# Deploy
+# 배포
 railway up
 ```
 
-## Monitoring & Logging
+## 모니터링 및 로깅
 
-### Logging
+### 로깅
 
-Use structured logging:
+구조화된 로깅 사용:
 
 ```typescript
 import { logger } from '@/lib/logger';
@@ -690,87 +690,302 @@ logger.info('Task created', { taskId: task.id, type: task.type });
 logger.error('Task failed', { taskId: task.id, error: error.message });
 ```
 
-### Monitoring
+### 모니터링
 
-Consider integrating:
-- **Sentry**: Error tracking
-- **LogRocket**: Session replay
-- **Datadog**: APM and logging
-- **Prometheus**: Metrics collection
+통합 고려 사항:
+- **Sentry**: 오류 추적
+- **LogRocket**: 세션 재생
+- **Datadog**: APM 및 로깅
+- **Prometheus**: 메트릭 수집
 
-## Performance Optimization
+## 성능 최적화
 
-### Next.js Optimizations
+### Next.js 최적화
 
-- Use Server Components by default
-- Implement proper caching strategies
-- Optimize images with `next/image`
-- Enable Turbopack for faster builds
+- 기본적으로 서버 컴포넌트 사용
+- 적절한 캐싱 전략 구현
+- `next/image`로 이미지 최적화
+- 더 빠른 빌드를 위해 Turbopack 활성화
 
-### Database Optimizations
+### 데이터베이스 최적화
 
-- Add indexes for frequently queried fields
-- Use connection pooling
-- Implement caching (Redis)
-- Optimize queries (avoid N+1)
+- 자주 쿼리되는 필드에 인덱스 추가
+- 연결 풀링 사용
+- 캐싱 구현 (Redis)
+- 쿼리 최적화 (N+1 방지)
 
-### Agent Optimizations
+### 에이전트 최적화
 
-- Use prompt caching effectively
-- Batch operations when possible
-- Implement rate limit handling
-- Clean up completed agent processes
+- 프롬프트 캐싱 효과적으로 사용
+- 가능한 경우 배치 작업
+- 속도 제한 처리 구현
+- 완료된 에이전트 프로세스 정리
 
-## Troubleshooting
+## Graceful Shutdown (우아한 종료)
 
-### Common Issues
+### Agent Manager 서버 종료 시 처리
 
-**Issue**: Port already in use
+**문제**: Agent Manager 서버(Next.js)가 종료될 때 실행 중인 Sub-Agent 프로세스를 정리하지 않으면 고아 프로세스(orphan process)가 남아 무한 실행될 수 있습니다.
+
+**해결책**: Graceful shutdown 로직 구현
+
+#### 1. 종료 신호 처리
+
+```typescript
+// packages/agent-manager/src/shutdown.ts
+import { AgentManager } from './AgentManager';
+
+/**
+ * Graceful shutdown handler
+ */
+export class ShutdownHandler {
+  private agentManager: AgentManager;
+  private isShuttingDown = false;
+
+  constructor(agentManager: AgentManager) {
+    this.agentManager = agentManager;
+
+    // SIGTERM, SIGINT 신호 처리 등록
+    process.on('SIGTERM', () => this.handleShutdown('SIGTERM'));
+    process.on('SIGINT', () => this.handleShutdown('SIGINT'));
+    process.on('SIGQUIT', () => this.handleShutdown('SIGQUIT'));
+  }
+
+  async handleShutdown(signal: string): Promise<void> {
+    if (this.isShuttingDown) {
+      console.log('⏳ Shutdown already in progress...');
+      return;
+    }
+
+    this.isShuttingDown = true;
+    console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
+
+    try {
+      // 1. 모든 실행 중인 Agent 목록 가져오기
+      const runningAgents = await this.agentManager.getRunningAgents();
+      console.log(`📋 Found ${runningAgents.length} running agents`);
+
+      // 2. 각 Agent에 대해 Checkpoint 생성 및 종료
+      const shutdownPromises = runningAgents.map(async (agent) => {
+        try {
+          console.log(`💾 Creating checkpoint for task ${agent.taskId}...`);
+
+          // Checkpoint 생성
+          await this.agentManager.createCheckpoint(agent.taskId, 'graceful_shutdown');
+
+          // Agent 프로세스에 SIGTERM 전송
+          console.log(`🛑 Terminating agent for task ${agent.taskId}...`);
+          agent.process.kill('SIGTERM');
+
+          // 5초 대기 후 아직 살아있으면 SIGKILL
+          await this.waitForExit(agent.process, 5000);
+
+        } catch (error) {
+          console.error(`❌ Error shutting down agent ${agent.taskId}:`, error);
+
+          // 강제 종료
+          agent.process.kill('SIGKILL');
+        }
+      });
+
+      // 3. 모든 Agent 종료 대기
+      await Promise.all(shutdownPromises);
+      console.log('✅ All agents terminated');
+
+      // 4. 데이터베이스 연결 종료
+      await this.agentManager.closeDatabase();
+      console.log('✅ Database connection closed');
+
+      // 5. 기타 리소스 정리
+      await this.cleanup();
+      console.log('✅ Cleanup completed');
+
+      console.log('👋 Shutdown complete. Goodbye!');
+      process.exit(0);
+
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  }
+
+  /**
+   * 프로세스가 종료될 때까지 대기 (타임아웃 있음)
+   */
+  private waitForExit(childProcess: ChildProcess, timeout: number): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        if (!childProcess.killed) {
+          console.warn(`⚠️ Process did not exit gracefully, sending SIGKILL`);
+          childProcess.kill('SIGKILL');
+        }
+        resolve();
+      }, timeout);
+
+      childProcess.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * 기타 리소스 정리
+   */
+  private async cleanup(): Promise<void> {
+    // Redis 연결 종료, 파일 핸들러 닫기, 임시 파일 정리 등
+    // ...
+  }
+}
+```
+
+#### 2. Next.js 서버와 통합
+
+```typescript
+// packages/claude-code-server/src/server.ts
+import { createServer } from 'http';
+import { parse } from 'url';
+import next from 'next';
+import { AgentManager } from '@claude-platform/agent-manager';
+import { ShutdownHandler } from '@claude-platform/agent-manager/shutdown';
+
+const dev = process.env.NODE_ENV !== 'production';
+const app = next({ dev });
+const handle = app.getRequestHandler();
+
+async function main() {
+  await app.prepare();
+
+  // Agent Manager 초기화
+  const agentManager = new AgentManager();
+
+  // Graceful shutdown handler 등록
+  const shutdownHandler = new ShutdownHandler(agentManager);
+
+  // HTTP 서버 생성
+  const server = createServer((req, res) => {
+    const parsedUrl = parse(req.url!, true);
+    handle(req, res, parsedUrl);
+  });
+
+  server.listen(3000, () => {
+    console.log('> Ready on http://localhost:3000');
+  });
+}
+
+main().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
+```
+
+#### 3. Docker 환경에서의 처리
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY . .
+RUN npm ci --only=production
+RUN npm run build
+
+EXPOSE 3000
+
+# Graceful shutdown을 위해 SIGTERM을 전달하도록 설정
+STOPSIGNAL SIGTERM
+
+CMD ["npm", "start"]
+```
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    stop_grace_period: 30s  # ← Graceful shutdown 대기 시간
+    environment:
+      - NODE_ENV=production
+```
+
+#### 4. 테스트
+
 ```bash
-# Kill process on port 3000
+# 개발 환경에서 테스트
+npm run dev
+
+# Ctrl+C 누르기 (SIGINT)
+# 또는 다른 터미널에서:
+kill -TERM <PID>
+
+# 로그 확인:
+# - "Starting graceful shutdown..."
+# - "Creating checkpoint for task..."
+# - "All agents terminated"
+# - "Shutdown complete"
+```
+
+### 주의사항
+
+1. **타임아웃 설정**: Agent가 5초 내에 종료되지 않으면 SIGKILL 사용
+2. **Checkpoint 실패**: Checkpoint 생성 실패 시에도 Agent 종료
+3. **재시작 안전성**: 서버 재시작 시 Checkpoint에서 Agent 복구 가능
+4. **로그 보존**: 종료 전 모든 로그 flush하여 손실 방지
+
+## 문제 해결
+
+### 일반적인 문제
+
+**문제**: 포트가 이미 사용 중
+```bash
+# 포트 3000의 프로세스 종료
 lsof -ti:3000 | xargs kill -9
 ```
 
-**Issue**: Database locked (SQLite)
+**문제**: 데이터베이스 잠김 (SQLite)
 ```bash
-# Reset database
+# 데이터베이스 재설정
 rm prisma/dev.db
 npx prisma migrate dev
 ```
 
-**Issue**: Agent not starting
-- Verify Claude Code CLI is installed (`claude --version`)
-- Check Claude Code CLI authentication (`claude login`)
-- Verify working directory permissions
-- Check agent process logs
+**문제**: 에이전트가 시작되지 않음
+- Claude Code CLI가 설치되어 있는지 확인 (`claude --version`)
+- Claude Code CLI 인증 확인 (`claude login`)
+- 작업 디렉토리 권한 확인
+- 에이전트 프로세스 로그 확인
 
-**Issue**: SSE connection drops
-- Check reverse proxy timeout settings
-- Verify client reconnection logic
-- Check server keep-alive settings
+**문제**: SSE 연결 끊김
+- 리버스 프록시 타임아웃 설정 확인
+- 클라이언트 재연결 로직 확인
+- 서버 keep-alive 설정 확인
 
-## Contributing
+## 기여
 
-1. Fork the repository
-2. Create feature branch
-3. Make changes following conventions
-4. Add tests
-5. Update documentation
-6. Submit pull request
+1. 저장소 포크
+2. 기능 브랜치 생성
+3. 규칙에 따라 변경 사항 작성
+4. 테스트 추가
+5. 문서 업데이트
+6. Pull request 제출
 
-## Resources
+## 리소스
 
-- **Next.js Documentation**: https://nextjs.org/docs
-- **Prisma Documentation**: https://www.prisma.io/docs
-- **Claude API Documentation**: https://docs.anthropic.com
-- **TypeScript Handbook**: https://www.typescriptlang.org/docs
+- **Next.js 문서**: https://nextjs.org/docs
+- **Prisma 문서**: https://www.prisma.io/docs
+- **Claude API 문서**: https://docs.anthropic.com
+- **TypeScript 핸드북**: https://www.typescriptlang.org/docs
 
-## Support
+## 지원
 
-- **GitHub Issues**: Report bugs and request features
-- **Documentation**: Check `/docs` directory
-- **Component Guides**: See `CLAUDE.md` files in each package
+- **GitHub Issues**: 버그 보고 및 기능 요청
+- **문서**: `/docs` 디렉토리 확인
+- **컴포넌트 가이드**: 각 패키지의 `CLAUDE.md` 파일 참조
 
 ---
 
-Happy coding! 🚀
+즐거운 코딩 되세요!

@@ -1,18 +1,18 @@
-# API Documentation
+# API 문서
 
-## Overview
+## 개요
 
-The Claude Code Server exposes RESTful APIs for task management, reviews, dependencies, questions, and settings. All APIs are accessible via the web server.
+Claude Code Server는 작업 관리, 리뷰, 의존성, 질문 및 설정을 위한 RESTful API를 제공합니다. 모든 API는 웹 서버를 통해 액세스할 수 있습니다.
 
-**Base URL**: `http://localhost:3000/api` (development)
+**Base URL**: `http://localhost:3000/api` (개발 환경)
 
-**Response Format**: JSON
+**응답 형식**: JSON
 
-**Authentication**: API Key (optional, configured in settings)
+**인증**: API Key (선택 사항, 설정에서 구성)
 
-## Common Response Format
+## 공통 응답 형식
 
-### Success Response
+### 성공 응답
 ```json
 {
   "success": true,
@@ -20,7 +20,7 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 }
 ```
 
-### Error Response
+### 오류 응답
 ```json
 {
   "success": false,
@@ -35,7 +35,7 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `POST /api/tasks`
 
-**Description**: Create a new task
+**설명**: 새 작업 생성
 
 **Request Body**:
 ```json
@@ -47,13 +47,13 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 }
 ```
 
-**Parameters**:
-- `title` (string, required): Task title
-- `type` (string, required): Task type - `create_app`, `modify_app`, `workflow`, `custom`
-- `description` (string, required): Detailed task description
-- `outputDirectory` (string, optional): Output directory path
+**매개변수**:
+- `title` (string, 필수): 작업 제목
+- `type` (string, 필수): 작업 유형 - `create_app`, `modify_app`, `workflow`, `custom`
+- `description` (string, 필수): 상세 작업 설명
+- `outputDirectory` (string, 선택): 출력 디렉토리 경로
 
-**Response** (201 Created):
+**응답** (201 Created):
 ```json
 {
   "success": true,
@@ -74,15 +74,15 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `GET /api/tasks`
 
-**Description**: List all tasks with optional filtering
+**설명**: 선택적 필터링이 가능한 모든 작업 목록 조회
 
-**Query Parameters**:
-- `status` (string, optional): Filter by status - `draft`, `pending`, `in_progress`, `review`, `completed`, `failed`
-- `type` (string, optional): Filter by type
-- `page` (number, optional): Page number (default: 1)
-- `pageSize` (number, optional): Items per page (default: 20)
+**Query 매개변수**:
+- `status` (string, 선택): 상태별 필터링 - `draft`, `pending`, `in_progress`, `review`, `completed`, `failed`
+- `type` (string, 선택): 유형별 필터링
+- `page` (number, 선택): 페이지 번호 (기본값: 1)
+- `pageSize` (number, 선택): 페이지당 항목 수 (기본값: 20)
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -112,9 +112,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `GET /api/tasks/{id}`
 
-**Description**: Get task details
+**설명**: 작업 상세 정보 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -150,7 +150,7 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `PATCH /api/tasks/{id}`
 
-**Description**: Update task properties
+**설명**: 작업 속성 업데이트
 
 **Request Body**:
 ```json
@@ -160,7 +160,7 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 }
 ```
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -176,9 +176,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `DELETE /api/tasks/{id}`
 
-**Description**: Delete a task (only if not in progress)
+**설명**: 작업 삭제 (진행 중이 아닐 때만 가능)
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -193,9 +193,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `POST /api/tasks/{id}/execute`
 
-**Description**: Start executing a task
+**설명**: 작업 실행 시작
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -211,9 +211,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `POST /api/tasks/{id}/pause`
 
-**Description**: Pause task execution
+**설명**: 작업 실행 일시 중지
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -229,9 +229,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `POST /api/tasks/{id}/resume`
 
-**Description**: Resume paused task
+**설명**: 일시 중지된 작업 재개
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -247,9 +247,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `POST /api/tasks/{id}/cancel`
 
-**Description**: Cancel task execution
+**설명**: 작업 실행 취소
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -265,9 +265,9 @@ The Claude Code Server exposes RESTful APIs for task management, reviews, depend
 
 **Endpoint**: `GET /api/tasks/{id}/stream`
 
-**Description**: Stream real-time task logs via Server-Sent Events
+**설명**: Server-Sent Events를 통한 실시간 작업 로그 스트리밍
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```
 Content-Type: text/event-stream
 Cache-Control: no-cache
@@ -284,23 +284,23 @@ data: {"type":"dependency_request","data":{"type":"api_key","name":"OPENAI_API_K
 data: {"type":"complete","data":{"success":true}}
 ```
 
-**Event Types**:
-- `log`: General log message
-- `phase_update`: Phase status changed
-- `step_update`: Step progress updated
-- `dependency_request`: Agent requests dependency
-- `user_question`: Agent asks question
-- `review_required`: Phase review needed
-- `complete`: Task completed
-- `error`: Error occurred
+**이벤트 유형**:
+- `log`: 일반 로그 메시지
+- `phase_update`: 페이즈 상태 변경
+- `step_update`: 단계 진행률 업데이트
+- `dependency_request`: 에이전트가 의존성 요청
+- `user_question`: 에이전트가 질문
+- `review_required`: 페이즈 리뷰 필요
+- `complete`: 작업 완료
+- `error`: 오류 발생
 
 ### Get Agent Status
 
 **Endpoint**: `GET /api/tasks/{id}/status`
 
-**Description**: Get current agent status
+**설명**: 현재 에이전트 상태 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -331,9 +331,9 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `GET /api/tasks/{id}/phases`
 
-**Description**: Get list of phases for task
+**설명**: 작업의 페이즈 목록 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -367,9 +367,9 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `GET /api/tasks/{id}/reviews`
 
-**Description**: List all reviews for a task
+**설명**: 작업의 모든 리뷰 목록 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -397,7 +397,7 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `POST /api/tasks/{id}/reviews`
 
-**Description**: Create a review for a phase (usually automatic)
+**설명**: 페이즈에 대한 리뷰 생성 (일반적으로 자동)
 
 **Request Body**:
 ```json
@@ -410,7 +410,7 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-**Response** (201 Created):
+**응답** (201 Created):
 ```json
 {
   "success": true,
@@ -429,16 +429,16 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `PATCH /api/reviews/{id}/approve`
 
-**Description**: Approve a phase review
+**설명**: 페이즈 리뷰 승인
 
-**Request Body** (optional):
+**Request Body** (선택):
 ```json
 {
   "comment": "Looks good! Proceeding to design phase."
 }
 ```
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -455,7 +455,7 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `PATCH /api/reviews/{id}/request-changes`
 
-**Description**: Request changes to deliverables
+**설명**: 결과물에 대한 변경 요청
 
 **Request Body**:
 ```json
@@ -464,7 +464,7 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -481,7 +481,7 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `POST /api/reviews/{id}/feedback`
 
-**Description**: Add file-specific feedback
+**설명**: 파일별 피드백 추가
 
 **Request Body**:
 ```json
@@ -493,7 +493,7 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -510,69 +510,15 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-## Dependencies API
-
-### List Dependencies
-
-**Endpoint**: `GET /api/tasks/{id}/dependencies`
-
-**Description**: List all dependencies for a task
-
-**Response** (200 OK):
-```json
-{
-  "success": true,
-  "data": {
-    "dependencies": [
-      {
-        "id": "dep_123",
-        "taskId": "task_123",
-        "type": "api_key",
-        "name": "OPENAI_API_KEY",
-        "description": "Required for AI features",
-        "required": true,
-        "status": "pending",
-        "requestedAt": "2025-01-15T10:15:00Z"
-      }
-    ]
-  }
-}
-```
-
-### Provide Dependency
-
-**Endpoint**: `POST /api/dependencies/{id}/provide`
-
-**Description**: Provide value for a dependency
-
-**Request Body**:
-```json
-{
-  "value": "sk-..."
-}
-```
-
-**Response** (200 OK):
-```json
-{
-  "success": true,
-  "data": {
-    "id": "dep_123",
-    "status": "provided",
-    "providedAt": "2025-01-15T10:20:00Z"
-  }
-}
-```
-
 ## Questions API
 
 ### List Questions
 
 **Endpoint**: `GET /api/tasks/{id}/questions`
 
-**Description**: List all questions for a task
+**설명**: 작업의 모든 질문 목록 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -598,7 +544,7 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `POST /api/questions/{id}/answer`
 
-**Description**: Answer an agent question
+**설명**: 에이전트 질문에 답변
 
 **Request Body**:
 ```json
@@ -607,7 +553,7 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -626,9 +572,9 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `GET /api/tasks/{id}/verifications`
 
-**Description**: Get verification reports for task phases
+**설명**: 작업 페이즈의 검증 리포트 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -664,9 +610,9 @@ data: {"type":"complete","data":{"success":true}}
 
 **Endpoint**: `GET /api/settings`
 
-**Description**: Get platform settings
+**설명**: 플랫폼 설정 조회
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -681,13 +627,13 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-**Note**: Claude Code CLI authentication is managed separately via `claude login`. No API key is stored in settings.
+**참고**: Claude Code CLI 인증은 `claude login`을 통해 별도로 관리됩니다. 설정에 API 키가 저장되지 않습니다.
 
 ### Update Settings
 
 **Endpoint**: `PATCH /api/settings`
 
-**Description**: Update platform settings
+**설명**: 플랫폼 설정 업데이트
 
 **Request Body**:
 ```json
@@ -697,7 +643,7 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-**Response** (200 OK):
+**응답** (200 OK):
 ```json
 {
   "success": true,
@@ -709,66 +655,170 @@ data: {"type":"complete","data":{"success":true}}
 }
 ```
 
-## Workflows API (Phase 3 Feature)
+## Workflows API
+
+> **참고**: Workflow 기능은 Phase-C (workflow) 작업 타입을 위한 것입니다.
 
 ### List Workflows
 
 **Endpoint**: `GET /api/workflows`
 
+**설명**: 모든 workflow 목록 조회
+
+**쿼리 파라미터**:
+- `status` (선택): `active` | `inactive` | `draft`
+- `page` (선택): 페이지 번호 (기본값: 1)
+- `limit` (선택): 페이지당 항목 수 (기본값: 20)
+
+**응답** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "workflows": [
+      {
+        "id": "wf_abc123",
+        "name": "GitHub PR Notification",
+        "status": "active",
+        "triggers": ["webhook"],
+        "steps": 5,
+        "createdAt": "2025-01-15T08:00:00Z"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 45 }
+  }
+}
+```
+
 ### Create Workflow
 
 **Endpoint**: `POST /api/workflows`
+
+**설명**: 새 workflow 생성
+
+**Request Body**:
+```json
+{
+  "name": "GitHub PR Notification",
+  "description": "Send Slack notification on new PR",
+  "triggers": [{ "type": "webhook", "config": { "url": "/webhooks/github" } }],
+  "steps": [
+    { "name": "Parse Event", "type": "transform", "config": {} },
+    { "name": "Send Slack", "type": "action", "config": { "channel": "#dev" } }
+  ]
+}
+```
+
+**응답** (201 Created):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wf_abc123",
+    "name": "GitHub PR Notification",
+    "status": "active",
+    "createdAt": "2025-02-07T10:30:00Z"
+  }
+}
+```
 
 ### Execute Workflow
 
 **Endpoint**: `POST /api/workflows/{id}/execute`
 
-## Error Codes
+**설명**: Workflow 즉시 실행 (수동 트리거)
+
+**Request Body** (선택):
+```json
+{
+  "input": { "pr": { "title": "Fix bug", "author": "john" } }
+}
+```
+
+**응답** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "executionId": "exec_xyz789",
+    "workflowId": "wf_abc123",
+    "status": "running",
+    "startedAt": "2025-02-07T11:15:00Z"
+  }
+}
+```
+
+### Get Workflow Execution
+
+**Endpoint**: `GET /api/workflows/{workflowId}/executions/{executionId}`
+
+**설명**: Workflow 실행 상태 조회
+
+**응답** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "exec_xyz789",
+    "status": "completed",
+    "startedAt": "2025-02-07T11:15:00Z",
+    "completedAt": "2025-02-07T11:15:23Z",
+    "steps": [
+      { "stepId": "step_1", "status": "completed", "duration": 120 },
+      { "stepId": "step_2", "status": "completed", "duration": 850 }
+    ]
+  }
+}
+```
+
+**참고**: Workflow 상세 구현은 `/docs/WORKFLOWS.md` Phase-C 섹션 참조
+
+## 오류 코드
 
 | Code | Description |
 |------|-------------|
-| 400 | Bad Request - Invalid input |
-| 401 | Unauthorized - Missing/invalid API key |
-| 403 | Forbidden - Insufficient permissions |
-| 404 | Not Found - Resource doesn't exist |
-| 409 | Conflict - Resource state conflict |
-| 429 | Too Many Requests - Rate limit exceeded |
-| 500 | Internal Server Error - Server error |
+| 400 | Bad Request - 잘못된 입력 |
+| 401 | Unauthorized - API 키 누락/잘못됨 |
+| 403 | Forbidden - 권한 부족 |
+| 404 | Not Found - 리소스가 존재하지 않음 |
+| 409 | Conflict - 리소스 상태 충돌 |
+| 429 | Too Many Requests - 속도 제한 초과 |
+| 500 | Internal Server Error - 서버 오류 |
 
-## Rate Limiting
+## 속도 제한
 
-- **Default**: 100 requests per minute per IP
-- **Authenticated**: 1000 requests per minute per API key
-- **SSE Connections**: Max 10 concurrent per user
+- **기본값**: IP당 분당 100 요청
+- **인증됨**: API 키당 분당 1000 요청
+- **SSE 연결**: 사용자당 최대 10개 동시 연결
 
-**Response Headers**:
+**응답 헤더**:
 ```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
 X-RateLimit-Reset: 1705315200
 ```
 
-## Authentication
+## 인증
 
-### API Key Authentication
+### API 키 인증
 
 ```bash
 curl -H "X-API-Key: your-api-key" \
   https://api.example.com/api/tasks
 ```
 
-### Bearer Token (Future)
+### Bearer Token (향후 제공)
 
 ```bash
 curl -H "Authorization: Bearer your-token" \
   https://api.example.com/api/tasks
 ```
 
-## Webhooks (Phase 3 Feature)
+## Webhooks (Phase 3 기능)
 
-Configure webhooks to receive events:
+이벤트를 수신하도록 웹훅 구성:
 
-**Events**:
+**이벤트**:
 - `task.created`
 - `task.started`
 - `task.completed`
@@ -778,7 +828,7 @@ Configure webhooks to receive events:
 - `dependency.requested`
 - `question.asked`
 
-**Webhook Payload**:
+**Webhook 페이로드**:
 ```json
 {
   "event": "task.completed",
@@ -791,8 +841,8 @@ Configure webhooks to receive events:
 }
 ```
 
-## Reference
+## 참고 자료
 
-- **Feature Specification**: `FEATURES.md`
-- **Architecture**: `ARCHITECTURE.md`
-- **Development Guide**: `DEVELOPMENT.md`
+- **기능 명세**: `FEATURES.md`
+- **아키텍처**: `ARCHITECTURE.md`
+- **개발 가이드**: `DEVELOPMENT.md`

@@ -131,29 +131,7 @@
   ---
   D. 플랫폼-에이전트 통신 프로토콜
 
-  D1. 의존성 요청/제공 (Dependency)
-
-  프로토콜:
-  [DEPENDENCY_REQUEST]
-  type: api_key | env_variable | service |
-  file | permission | package
-  name: OPENAI_API_KEY
-  description: OpenAI API 호출에 필요
-  required: true
-  [/DEPENDENCY_REQUEST]
-
-  동작:
-  1. 에이전트가 필요한 의존성 출력
-  2. 플랫폼이 감지하여 작업 일시 중지
-  3. 사용자에게 UI로 입력 요청
-  4. 사용자가 제공 → 환경변수 저장
-  5. 작업 자동 재개 (환경변수 주입)
-
-  자동 감지 패턴 (간편 사용):
-  "OPENAI_API_KEY 환경 변수가 필요합니다"
-  "Need API key for GITHUB_TOKEN"
-
-  D2. 사용자 질문 요청/응답
+  D1. 사용자 질문 요청/응답
 
   프로토콜:
   [USER_QUESTION]
@@ -175,7 +153,7 @@
   - 답변 제공 후 자동 재개
   - 답변 히스토리 저장
 
-  D3. Phase 완료 신호
+  D2. Phase 완료 신호
 
   === PHASE 1 COMPLETE ===
   완료: Phase 1 (기획)
@@ -184,7 +162,7 @@
   - docs/planning/02_market.md
   ...
 
-  D4. 에러 프로토콜
+  D3. 에러 프로토콜
 
   [ERROR]
   type: missing_file | execution_failed |
@@ -204,7 +182,6 @@
     | 'phase_update'        // Phase 상태
   변경
     | 'step_update'         // Step 상태 변
-    | 'dependency_request'  // 의존성 요청
     | 'user_question'       // 사용자 질문
     | 'review_required'     // 리뷰 필요
     | 'complete'            // 작업 완료
@@ -228,7 +205,6 @@
     | 'idle'                 // 대기
     | 'running'              // 실행 중
     | 'waiting_review'       // 리뷰 대기
-    | 'waiting_dependency'   // 의존성 대기
     | 'waiting_question'     // 질문 대기
     | 'verifying'            // 검증 중
     | 'paused'               // 일시 중지
@@ -436,7 +412,14 @@
   ---
   L. 설정 관리 (Settings)
 
-  L1. 필수 설정 항목
+  **📖 상세 문서**: [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md) - Settings 시스템 완전한 가이드
+
+  **핵심 원칙**: "Upfront Configuration, Graceful Degradation"
+  - 플랫폼 운영자가 사전에 설정 구성
+  - Sub-Agent가 실행 시 환경 변수로 읽기
+  - 설정 없으면 기능 skip하고 수동 방법 문서화
+
+  L1. 플랫폼 설정 항목
 
   interface Settings {
     // Claude Code CLI 설정 (CLI 인증은 `claude login`으로 별도 수행)
@@ -444,28 +427,70 @@
     claude_max_tokens?: number;
     claude_auto_accept?: boolean;    // Tool 자동 승인
 
-    // 저장소 설정
-    output_directory: string;        // 프로젝트 출력 경로
+    // 프로젝트 저장 경로
+    output_directory: string;        // 생성된 프로젝트 출력 경로
+  }
 
-    // 외부 통합
+  L2. Optional Integrations (선택적 통합)
+
+  플랫폼 운영자가 설정 시 sub-agent가 자동으로 활용하는 기능들.
+  설정되지 않으면 sub-agent는 해당 기능을 skip하고 계속 진행.
+
+  interface OptionalIntegrations {
+    // GitHub Integration
+    github_token?: string;
+    // 설정 시: Sub-agent가 자동으로 repository 생성 및 코드 push
+    // 미설정 시: 로컬에만 저장, README에 수동 업로드 방법 안내
+
+    // Supabase Integration
     supabase_url?: string;
     supabase_anon_key?: string;
-    github_token?: string;
+    // 설정 시: Sub-agent가 자동으로 DB 스키마 생성
+    // 미설정 시: README에 수동 설정 방법 안내
+
+    // Vercel Deployment
+    vercel_token?: string;
+    // 설정 시: Sub-agent가 자동으로 Vercel에 배포
+    // 미설정 시: README에 수동 배포 방법 안내
 
     // Workflow용 (MCP 서버)
     notion_token?: string;
     slack_bot_token?: string;
     slack_default_channel?: string;
+    // Workflow 타입 task에서만 사용
   }
 
-  L2. 환경변수 관리
+  L3. Sub-agent의 Settings 사용
 
-  // .env 파일 읽기/쓰기
-  saveEnvVariable(key: string, value: string)
-  readEnvFile(): Record<string, string>
-  deleteEnvVariable(key: string)
+  Sub-agent는 Settings를 조회만 할 수 있음 (읽기 전용):
 
-  // 에이전트 실행 시 자동 주입
+  1. Phase 3 (Development) 시작 시 Settings 조회
+  2. Optional integration이 설정되어 있으면 해당 기능 사용
+  3. 설정되지 않으면 graceful degradation:
+     - 기능 skip
+     - README에 수동 방법 문서화
+     - 로그에 "Integration not configured, skipping..." 출력
+
+  예시:
+  ```
+  Settings 조회 → github_token 있음
+    → GitHub repository 생성
+    → 코드 push
+    → README에 repo URL 추가
+
+  Settings 조회 → github_token 없음
+    → 로컬에만 저장
+    → README에 "수동으로 GitHub에 업로드하세요" 안내
+    → 업로드 명령어 예시 추가
+  ```
+
+  **📚 상세 구현 가이드**: [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md)
+  - Settings 구조 및 보안
+  - Sub-agent 사용 방법
+  - API 레퍼런스
+  - 구현 예시 및 트러블슈팅
+
+  **⚠️ 주의**: DEPENDENCY_REQUEST 프로토콜은 deprecated되었습니다. Settings 시스템을 사용하세요.
 
   ---
   M. 알림 시스템 (Notification)
@@ -479,7 +504,6 @@
   요청
     | 'review_approved'      // 리뷰 승인됨
     | 'changes_requested'    // 수정 요청
-    | 'dependency_required'  // 의존성 필요
     | 'question_required'    // 질문 응답
   필요
     | 'task_completed'       // 작업 완료
@@ -629,8 +653,8 @@
     | PhaseCompleted
     | ReviewCreated
     | ReviewApproved
-    | DependencyRequested
-    | DependencyProvided
+    | DependencyRequested      // ⚠️ DEPRECATED - Use Settings system instead
+    | DependencyProvided       // ⚠️ DEPRECATED - Use Settings system instead
     | QuestionAsked
     | QuestionAnswered
     | TaskCompleted
@@ -884,7 +908,7 @@
   2. ✅ Claude Code 실행 및 로그 스트리밍
   3. ✅ Phase 진행 감지 (3 Phase)
   4. ✅ 리뷰 게이트 (승인/거부)
-  5. ✅ 의존성 요청/제공
+  5. ✅ Settings 시스템 (선택적 통합)
   6. ✅ 에이전트 상태 추적
   7. ✅ 가이드 시스템 (24개 문서)
 
@@ -915,11 +939,14 @@
   1. 체계적인 3-Phase 워크플로우
     - 기획 → 설계 → 개발 단계적 진행
     - 각 Phase별 명확한 산출물
-  2. 36개 가이드 문서 시스템
+  2. 24개 가이드 문서 시스템
     - 에이전트가 참조하는 상세한 가이드
     - 일관된 품질 보장
-  3. 플랫폼-에이전트 통신 프로토콜
-    - 의존성 요청/제공 자동화
+  3. Settings 시스템 (사전 구성 방식)
+    - Optional Integrations 자동 활용
+    - Graceful degradation 패턴
+    - 자세한 내용: docs/SETTINGS_SYSTEM.md
+  4. 플랫폼-에이전트 통신 프로토콜
     - 사용자 질문 자동 감지
   4. 리뷰 게이트 시스템
     - Phase별 사용자 승인
@@ -935,9 +962,8 @@
 
   - 5가지 작업 타입 (create_app 우선)
   - 3-Phase 워크플로우 (기획-설계-개발)
-  - 36개 가이드 문서
-  - 플랫폼-에이전트 통신 프로토콜 (의존성,
-  질문, 완료 신호, 에러)
+  - 24개 가이드 문서
+  - 플랫폼-에이전트 통신 프로토콜 (질문, 완료 신호, 에러)
   - 리뷰 게이트 시스템
   - 검증 시스템 (자동 재작업)
   - 실시간 로그 스트리밍 (SSE)

@@ -51,12 +51,41 @@ This is a **3-tier monorepo architecture**:
   - `development/`: 6 guides for Phase 3 (development)
   - `verification/`: 3 guides for automated verification
   - `review/`: 1 guide for review process
-- **`/docs/`**: Project documentation
-  - `ARCHITECTURE.md`: Detailed 3-tier architecture
-  - `FEATURES.md`: Comprehensive feature specification
-  - `WORKFLOWS.md`: Phase-based workflow documentation
-  - `API.md`: REST API reference
-  - `DEVELOPMENT.md`: Development setup guide
+- **`/docs/`**: Project documentation (see Documentation Structure below)
+
+## Documentation Structure
+
+The `/docs/` directory contains comprehensive documentation organized by topic:
+
+**Start Here**:
+- `QUICK_START.md` - Fast onboarding (read this first!)
+- `README.md` - Documentation index
+
+**Core Documentation** (essential reading):
+- `ARCHITECTURE.md` - 3-tier system architecture
+- `WORKFLOWS.md` - Phase-based workflow details
+- `FEATURES.md` - Complete feature specification
+- `API.md` - REST API reference
+- `DEVELOPMENT.md` - Development setup
+
+**Reference Documentation** (use as needed):
+- `GLOSSARY.md` - Terms and definitions
+- `PROTOCOLS.md` - Platform-agent communication protocols
+- `STATE_MACHINE.md` - Agent state transitions
+- `DIAGRAMS.md` - System diagrams and flows
+
+**System-Specific** (deep dives):
+- `SETTINGS_SYSTEM.md` - Settings and optional integrations (✅ Recommended)
+- `CHECKPOINT_SYSTEM.md` - Session save/restore mechanisms
+- `RATE_LIMITING.md` - Rate limit detection and handling
+- `TROUBLESHOOTING.md` - Common issues and solutions
+- `DEPENDENCY_SYSTEM.md` - ⚠️ **DEPRECATED** (use Settings system instead)
+
+**Quick Reference**:
+- When stuck: Check `TROUBLESHOOTING.md` for solutions
+- Terms: Check `GLOSSARY.md` for definitions
+- Settings: Check `SETTINGS_SYSTEM.md` for optional integrations
+- ⚠️ Do NOT use `DEPENDENCY_SYSTEM.md` (deprecated)
 
 ## Development Commands
 
@@ -215,16 +244,6 @@ See `/docs/WORKFLOWS.md` for detailed workflow documentation and verification cr
 
 Sub-agents communicate with the platform via structured text protocols in stdout:
 
-**Dependency Request:**
-```
-[DEPENDENCY_REQUEST]
-type: api_key | env_variable | service | file | permission
-name: OPENAI_API_KEY
-description: Required for OpenAI API calls
-required: true
-[/DEPENDENCY_REQUEST]
-```
-
 **User Question:**
 ```
 [USER_QUESTION]
@@ -321,11 +340,26 @@ Read `packages/sub-agent/CLAUDE.md` for detailed guidance. Key points:
 
 Before implementing features, read relevant documentation:
 
-- **Architecture changes**: `docs/ARCHITECTURE.md`
-- **New features**: `docs/FEATURES.md` (comprehensive 982-line spec)
-- **API endpoints**: `docs/API.md`
-- **Workflow logic**: `docs/WORKFLOWS.md`
-- **Development setup**: `docs/DEVELOPMENT.md`
+### Core Documentation
+- **Architecture changes**: `docs/ARCHITECTURE.md` - 3-tier system architecture
+- **New features**: `docs/FEATURES.md` - Comprehensive feature specification
+- **API endpoints**: `docs/API.md` - REST API reference
+- **Workflow logic**: `docs/WORKFLOWS.md` - Phase-based workflow details
+- **Development setup**: `docs/DEVELOPMENT.md` - Environment setup guide
+
+### Reference Documentation
+- **Quick Start**: `docs/QUICK_START.md` - Fast onboarding guide
+- **Glossary**: `docs/GLOSSARY.md` - Terms and definitions
+- **Protocols**: `docs/PROTOCOLS.md` - Platform-agent communication protocols
+- **State Machine**: `docs/STATE_MACHINE.md` - Agent state transitions
+- **Diagrams**: `docs/DIAGRAMS.md` - System diagrams and flows
+
+### System-Specific Documentation
+- **Settings System**: `docs/SETTINGS_SYSTEM.md` - Settings and optional integrations (✅ Recommended)
+- **Checkpoint System**: `docs/CHECKPOINT_SYSTEM.md` - Session save/restore
+- **Rate Limiting**: `docs/RATE_LIMITING.md` - Rate limit handling
+- **Troubleshooting**: `docs/TROUBLESHOOTING.md` - Common issues and solutions
+- **Dependency System**: `docs/DEPENDENCY_SYSTEM.md` - ⚠️ **DEPRECATED** (use Settings instead)
 
 ## Technology Stack
 
@@ -432,11 +466,12 @@ When implementing features that span multiple tiers:
 3. **Implement in Agent Manager** (Tier 2) - parsing and handling
 4. **Implement in Web Server** (Tier 1) - API and UI
 
-Example: Adding a new dependency type
-1. Define protocol format in `docs/FEATURES.md`
-2. Sub-agent outputs the new dependency request format
-3. Agent Manager adds parser for the new type
-4. Web Server adds UI for the new dependency input
+Example: Adding a new optional integration
+1. Add integration to Settings schema in `docs/SETTINGS_SYSTEM.md`
+2. Update `docs/FEATURES.md` Optional Integrations section
+3. Update Sub-agent guide to document integration usage
+4. Agent Manager passes settings to sub-agent on spawn (via environment variables)
+5. Web Server adds Settings UI for the new integration
 
 ## Common Pitfalls
 
@@ -446,6 +481,7 @@ Example: Adding a new dependency type
 - **Don't parse agent output with regex**: Use robust protocol parsers in Agent Manager
 - **Don't block SSE streams**: Keep connections alive with heartbeat events
 - **Don't hardcode phase logic**: Use phase definitions from workflow documentation
+- **Don't use DEPENDENCY_REQUEST protocol**: This is deprecated. Use Settings system instead (see `docs/SETTINGS_SYSTEM.md`)
 
 ### Sub-Agent Pitfalls (Workflow-Specific)
 - **Don't use wrong workflow guides**:
@@ -465,12 +501,22 @@ Example: Adding a new dependency type
 
 ## Getting Started for New Contributors
 
+### Fast Track (Recommended)
+1. **Quick Start**: Read `docs/QUICK_START.md` for rapid onboarding
+2. **Choose Your Path**:
+   - Working on Web Server (Tier 1)? → `packages/claude-code-server/CLAUDE.md`
+   - Working on Agent Manager (Tier 2)? → `packages/agent-manager/CLAUDE.md`
+   - Working on Sub-Agent (Tier 3)? → `packages/sub-agent/CLAUDE.md`
+3. **Reference as Needed**: Use `docs/GLOSSARY.md` and `docs/TROUBLESHOOTING.md`
+
+### Deep Dive (Comprehensive)
 1. Read `README.md` for project overview
 2. Read `docs/ARCHITECTURE.md` to understand 3-tier structure
 3. Read `docs/WORKFLOWS.md` to understand phase-based execution
-4. Pick a tier to work on and read its `CLAUDE.md`
-5. Reference guide documents in `/guide/` to understand what sub-agents produce
-6. Review protocol definitions in `docs/FEATURES.md` section D
+4. Read `docs/PROTOCOLS.md` to understand platform-agent communication
+5. Read `docs/STATE_MACHINE.md` to understand agent lifecycle
+6. Pick a tier to work on and read its `CLAUDE.md`
+7. Reference guide documents in `/guide/` to understand what sub-agents produce
 
 ## Environment Setup
 

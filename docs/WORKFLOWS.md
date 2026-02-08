@@ -1,1165 +1,1147 @@
-# Workflow Documentation
+# 워크플로우 문서
 
-## Overview
+## 개요
 
-Claude Code Server uses **phase-based workflows** to structure task execution. **CRITICAL: Each task type follows a COMPLETELY DIFFERENT workflow** with different phases, steps, deliverables, and agent behaviors.
+Claude Code Server는 **페이즈 기반 워크플로우**를 사용하여 태스크 실행을 구조화합니다. **중요: 각 태스크 타입은 완전히 다른 워크플로우**를 따르며, 각기 다른 페이즈, 단계, 산출물 및 에이전트 동작을 가집니다.
 
-**Four distinct workflow types**:
-- **Phase-A (create_app)**: Full app development cycle - Planning → Design → Development → Testing
-- **Phase-B (modify_app)**: Existing code modification - Analysis → Planning → Implementation → Testing
-- **Phase-C (workflow)**: Workflow automation - Planning → Design → Development → Testing (workflow-focused)
-- **Type-D (custom)**: Free-form conversation - No structured phases
+**네 가지 고유한 워크플로우 타입**:
+- **Phase-A (create_app)**: 전체 앱 개발 사이클 - 기획 → 설계 → 개발 → 테스트
+- **Phase-B (modify_app)**: 기존 코드 수정 - 분석 → 계획 → 구현 → 검증
+- **Phase-C (workflow)**: 워크플로우 자동화 - 기획 → 설계 → 개발 → 테스트 (워크플로우 중심)
+- **Type-D (custom)**: 자유 형식 대화 - 구조화된 페이즈 없음
 
-**Sub-agents must identify the task type and follow the corresponding workflow exactly.**
+**서브 에이전트는 태스크 타입을 식별하고 해당 워크플로우를 정확히 따라야 합니다.**
 
-## Workflow Type Comparison
+## 워크플로우 타입 비교
 
-| Aspect | Phase-A (create_app) | Phase-B (modify_app) | Phase-C (workflow) | Type-D (custom) |
+| 항목 | Phase-A (create_app) | Phase-B (modify_app) | Phase-C (workflow) | Type-D (custom) |
 |--------|---------------------|---------------------|-------------------|----------------|
-| **Purpose** | Create new app from scratch | Modify existing app | Create workflow automation | Free-form tasks |
-| **Phase 1** | Planning (9 docs) | Analysis (1 doc) | Planning (workflow reqs) | N/A (single phase) |
-| **Phase 2** | Design (5 docs) | Planning (1 doc) | Design (workflow logic) | N/A |
-| **Phase 3** | Development (code) | Implementation (code) | Development (code) | N/A |
-| **Phase 4** | Testing | Testing | Testing | N/A |
-| **Total Documents** | 14 documents | 2 documents | 2 documents | None |
-| **Guide Documents** | All 24 guides | Autonomous (no guides) | Adapt Phase-A guides | None |
-| **Starting Point** | Blank slate | Existing codebase | Blank slate | User prompt |
-| **Code Changes** | Create new codebase | Modify existing code | Create workflow code | Varies |
-| **Verification** | 3 verification guides | Custom verification | Custom verification | None |
-| **Review Gates** | After each phase (4 gates) | After each phase (4 gates) | After each phase (4 gates) | None |
-| **Key Challenge** | Complete planning & design | Preserve existing functionality | Integration & triggers | User satisfaction |
-| **Example Task** | "Build a todo app with React" | "Add dark mode to existing app" | "Send Slack msg on GitHub PR" | "Explain WebSockets" |
+| **목적** | 새로운 앱을 처음부터 생성 | 기존 앱 수정 | 워크플로우 자동화 생성 | 자유 형식 태스크 |
+| **Phase 1** | 기획 (9개 문서) | 분석 (1개 문서) | 기획 (워크플로우 요구사항) | N/A (단일 페이즈) |
+| **Phase 2** | 설계 (5개 문서) | 계획 (1개 문서) | 설계 (워크플로우 로직) | N/A |
+| **Phase 3** | 개발 (코드) | 구현 (코드) | 개발 (코드) | N/A |
+| **Phase 4** | 검증 | 검증 | 검증 | N/A |
+| **총 문서 수** | 14개 문서 | 2개 문서 | 2개 문서 | 없음 |
+| **가이드 문서** | 전체 24개 가이드 | 자율적 (가이드 없음) | Phase-A 가이드 적용 | 없음 |
+| **시작점** | 빈 슬레이트 | 기존 코드베이스 | 빈 슬레이트 | 사용자 프롬프트 |
+| **코드 변경** | 새 코드베이스 생성 | 기존 코드 수정 | 워크플로우 코드 생성 | 다양함 |
+| **검증** | 3개 검증 가이드 | 커스텀 검증 | 커스텀 검증 | 없음 |
+| **리뷰 게이트** | 각 페이즈 후 (4개 게이트) | 각 페이즈 후 (4개 게이트) | 각 페이즈 후 (4개 게이트) | 없음 |
+| **핵심 과제** | 완전한 기획 및 설계 | 기존 기능 보존 | 통합 및 트리거 | 사용자 만족 |
+| **예시 태스크** | "React로 todo 앱 만들기" | "기존 앱에 다크 모드 추가" | "GitHub PR 시 Slack 메시지 전송" | "WebSocket 설명" |
 
-## Task Type Workflows
+## 태스크 타입별 워크플로우
 
-### 1. create_app - New Application Development
+### 1. create_app - 새 애플리케이션 개발
 
-**Purpose**: Create new applications from scratch
+**목적**: 새로운 애플리케이션을 처음부터 생성
 
-**Workflow**: 4-Phase-A
+**워크플로우**: 4-Phase-A
 
 ```
-Phase 1: Planning (기획) - 9 steps
+Phase 1: 기획 (Planning) - 9단계
     ↓
-Phase 2: Design (설계) - 5 steps
+Phase 2: 설계 (Design) - 5단계
     ↓
-Phase 3: Development (개발) - 6 steps
+Phase 3: 개발 (Development) - 6단계
     ↓
-Phase 4: Testing (테스트) - Validation
+Phase 4: 검증 (Testing) - 자동 검증
 ```
 
-#### Phase 1: Planning (9 Steps)
+#### Phase 1: 기획 (9단계)
 
-| Step | Guide Document | Deliverable | Purpose |
+| 단계 | 가이드 문서 | 산출물 | 목적 |
 |------|----------------|-------------|---------|
-| 1 | `/guide/planning/01_idea.md` | `docs/planning/01_idea.md` | Define core idea, problem, solution |
-| 2 | `/guide/planning/02_market.md` | `docs/planning/02_market.md` | Analyze market, competitors, opportunities |
-| 3 | `/guide/planning/03_persona.md` | `docs/planning/03_persona.md` | Define target user personas |
-| 4 | `/guide/planning/04_user_journey.md` | `docs/planning/04_user_journey.md` | Map user journeys and touchpoints |
-| 5 | `/guide/planning/05_business_model.md` | `docs/planning/05_business_model.md` | Define business model and revenue |
-| 6 | `/guide/planning/06_product.md` | `docs/planning/06_product.md` | Define product scope and requirements |
-| 7 | `/guide/planning/07_features.md` | `docs/planning/07_features.md` | Specify features and priorities |
-| 8 | `/guide/planning/08_tech.md` | `docs/planning/08_tech.md` | Select technology stack |
-| 9 | `/guide/planning/09_roadmap.md` | `docs/planning/09_roadmap.md` | Create development roadmap |
+| 1 | `/guide/planning/01_idea.md` | `docs/planning/01_idea.md` | 핵심 아이디어, 문제, 해결책 정의 |
+| 2 | `/guide/planning/02_market.md` | `docs/planning/02_market.md` | 시장, 경쟁자, 기회 분석 |
+| 3 | `/guide/planning/03_persona.md` | `docs/planning/03_persona.md` | 타겟 사용자 페르소나 정의 |
+| 4 | `/guide/planning/04_user_journey.md` | `docs/planning/04_user_journey.md` | 사용자 여정 및 접점 매핑 |
+| 5 | `/guide/planning/05_business_model.md` | `docs/planning/05_business_model.md` | 비즈니스 모델 및 수익 정의 |
+| 6 | `/guide/planning/06_product.md` | `docs/planning/06_product.md` | 제품 범위 및 요구사항 정의 |
+| 7 | `/guide/planning/07_features.md` | `docs/planning/07_features.md` | 기능 및 우선순위 지정 |
+| 8 | `/guide/planning/08_tech.md` | `docs/planning/08_tech.md` | 기술 스택 선택 |
+| 9 | `/guide/planning/09_roadmap.md` | `docs/planning/09_roadmap.md` | 개발 로드맵 생성 |
 
-**Verification**: `/guide/verification/phase1_verification.md`
+**검증**: `/guide/verification/phase1_verification.md`
 
-**Criteria**:
-- ✅ All 9 documents exist
-- ✅ Each document ≥500 characters
-- ✅ No placeholders
-- ✅ Consistent information
-- ✅ Proper formatting
+**기준**:
+- ✅ 모든 9개 문서 존재
+- ✅ 각 문서 ≥500자
+- ✅ 플레이스홀더 없음
+- ✅ 일관된 정보
+- ✅ 적절한 포맷팅
 
-#### Phase 2: Design (5 Steps)
+#### Phase 2: 설계 (5단계)
 
-| Step | Guide Document | Deliverable | Purpose |
+| 단계 | 가이드 문서 | 산출물 | 목적 |
 |------|----------------|-------------|---------|
-| 1 | `/guide/design/01_screen.md` | `docs/design/01_screen.md` | Design screens and wireframes |
-| 2 | `/guide/design/02_data_model.md` | `docs/design/02_data_model.md` | Define data models and schemas |
-| 3 | `/guide/design/03_task_flow.md` | `docs/design/03_task_flow.md` | Map task flows and interactions |
-| 4 | `/guide/design/04_api.md` | `docs/design/04_api.md` | Design API endpoints and specs |
-| 5 | `/guide/design/05_architecture.md` | `docs/design/05_architecture.md` | Define system architecture |
+| 1 | `/guide/design/01_screen.md` | `docs/design/01_screen.md` | 화면 및 와이어프레임 설계 |
+| 2 | `/guide/design/02_data_model.md` | `docs/design/02_data_model.md` | 데이터 모델 및 스키마 정의 |
+| 3 | `/guide/design/03_task_flow.md` | `docs/design/03_task_flow.md` | 작업 흐름 및 상호작용 매핑 |
+| 4 | `/guide/design/04_api.md` | `docs/design/04_api.md` | API 엔드포인트 및 스펙 설계 |
+| 5 | `/guide/design/05_architecture.md` | `docs/design/05_architecture.md` | 시스템 아키텍처 정의 |
 
-**Verification**: `/guide/verification/phase2_verification.md`
+**검증**: `/guide/verification/phase2_verification.md`
 
-**Criteria**:
-- ✅ All 5 documents exist
-- ✅ Data model clearly defined
-- ✅ API specs complete
-- ✅ Architecture documented
-- ✅ Feasible designs
+**기준**:
+- ✅ 모든 5개 문서 존재
+- ✅ 데이터 모델 명확히 정의
+- ✅ API 스펙 완성
+- ✅ 아키텍처 문서화
+- ✅ 실현 가능한 설계
 
-#### Phase 3: Development (6 Steps)
+#### Phase 3: 개발 (6단계)
 
-| Step | Guide Document | Deliverable | Purpose |
+| 단계 | 가이드 문서 | 산출물 | 목적 |
 |------|----------------|-------------|---------|
-| 1 | `/guide/development/01_setup.md` | Project structure | Initialize project and dependencies |
-| 2 | `/guide/development/02_data.md` | Database/models | Implement data layer |
-| 3 | `/guide/development/03_logic.md` | Business logic | Implement core functionality |
-| 4 | `/guide/development/04_ui.md` | UI components | Implement user interface |
-| 5 | `/guide/development/05_testing.md` | Tests | Write tests |
-| 6 | `/guide/development/06_deploy.md` | Deployment config | Prepare for deployment |
+| 1 | `/guide/development/01_setup.md` | 프로젝트 구조 | 프로젝트 및 의존성 초기화 |
+| 2 | `/guide/development/02_data.md` | 데이터베이스/모델 | 데이터 레이어 구현 |
+| 3 | `/guide/development/03_logic.md` | 비즈니스 로직 | 핵심 기능 구현 |
+| 4 | `/guide/development/04_ui.md` | UI 컴포넌트 | 사용자 인터페이스 구현 |
+| 5 | `/guide/development/05_testing.md` | 테스트 | 테스트 작성 |
+| 6 | `/guide/development/06_deploy.md` | 배포 설정 | 배포 준비 |
 
-**Verification**: `/guide/verification/phase3_verification.md`
+**검증**: `/guide/verification/phase3_verification.md`
 
-**Criteria**:
-- ✅ Correct project structure
-- ✅ All necessary files present
-- ✅ Tests included
-- ✅ No hardcoded secrets
-- ✅ README with instructions
+**기준**:
+- ✅ 올바른 프로젝트 구조
+- ✅ 모든 필요한 파일 존재
+- ✅ 테스트 포함
+- ✅ 하드코딩된 시크릿 없음
+- ✅ 지침이 포함된 README
 
-#### Phase 4: Testing
+#### Phase 4: 검증
 
-- Automated verification using verification guides
-- Quality assurance checks
-- Final validation before completion
+**책임**: Verification Agent (자동 검증)
 
-### Sub-Agent Instructions for create_app (Phase-A)
+**Phase 4에서 수행되는 작업**:
+1. **자동 검증**: Verification Agent가 Phase 3 산출물 검증
+2. **품질 보증**: 검증 가이드 기준에 따른 자동 체크
+3. **최종 검증**: 태스크 완료 전 최종 품질 확인
 
-**Phase 1: Planning (9 Steps)**
+**중요**: Phase 4는 Sub-Agent가 아닌 **Verification Agent**가 수행합니다.
+- Sub-Agent는 Phase 3에서 테스트 코드를 **작성**하고 실행 결과를 포함
+- Verification Agent는 Phase 4에서 전체 산출물의 **품질을 검증**
 
-**What to do**:
-1. Read ALL 9 planning guides in `/guide/planning/` (01_idea.md through 09_roadmap.md)
-2. Generate 9 comprehensive planning documents in `docs/planning/`
-3. Each document must be ≥500 characters with complete, specific content
-4. NO placeholders like "TODO", "TBD", "[Insert X]", "Coming soon"
-5. Ensure consistency across all documents (e.g., tech stack in 08_tech matches architecture in Phase 2)
+### create_app (Phase-A)를 위한 서브 에이전트 지침
 
-**Critical requirements**:
-- All 9 files must exist: `docs/planning/01_idea.md` through `09_roadmap.md`
-- Each file must have proper sections as defined in guide documents
-- Use specific examples, not generic descriptions
-- Define clear target users, features, and business model
+**Phase 1: 기획 (9단계)**
 
-**Phase 2: Design (5 Steps)**
+**수행 사항**:
+1. `/guide/planning/`의 모든 9개 기획 가이드를 읽기 (01_idea.md ~ 09_roadmap.md)
+2. `docs/planning/`에 9개의 포괄적인 기획 문서 생성
+3. 각 문서는 ≥500자이며 완전하고 구체적인 내용 포함
+4. "TODO", "TBD", "[Insert X]", "Coming soon" 같은 플레이스홀더 금지
+5. 모든 문서 간 일관성 보장 (예: 08_tech의 기술 스택이 Phase 2 아키텍처와 일치)
 
-**What to do**:
-1. Read ALL 5 design guides in `/guide/design/` (01_screen.md through 05_architecture.md)
-2. Generate 5 detailed design documents in `docs/design/`
-3. Create specific data models with field types (not just entity names)
-4. Design complete API specs with methods, paths, request/response schemas
-5. Document system architecture with components and data flow
+**필수 요구사항**:
+- 모든 9개 파일이 존재해야 함: `docs/planning/01_idea.md` ~ `09_roadmap.md`
+- 각 파일은 가이드 문서에 정의된 적절한 섹션을 가져야 함
+- 일반적인 설명이 아닌 구체적인 예시 사용
+- 명확한 타겟 사용자, 기능, 비즈니스 모델 정의
 
-**Critical requirements**:
-- All 5 files must exist: `docs/design/01_screen.md` through `05_architecture.md`
-- Data models must include: entity names, fields, types, relationships
-- API specs must include: HTTP method, path, request body, response, status codes
-- Architecture must be feasible and match the tech stack from Phase 1
+**Phase 2: 설계 (5단계)**
 
-**Phase 3: Development (6 Steps)**
+**수행 사항**:
+1. `/guide/design/`의 모든 5개 설계 가이드를 읽기 (01_screen.md ~ 05_architecture.md)
+2. `docs/design/`에 5개의 상세한 설계 문서 생성
+3. 필드 타입이 포함된 구체적인 데이터 모델 생성 (엔티티 이름만이 아님)
+4. 메서드, 경로, 요청/응답 스키마가 포함된 완전한 API 스펙 설계
+5. 컴포넌트 및 데이터 흐름을 포함한 시스템 아키텍처 문서화
 
-**What to do**:
-1. Read ALL 6 development guides in `/guide/development/` (01_setup.md through 06_deploy.md)
-2. Create complete, working codebase following the design from Phase 2
-3. Implement all features defined in Phase 1 planning documents
-4. Write tests (unit, integration, or e2e as appropriate)
-5. Create deployment configuration
-6. Write comprehensive README.md with setup instructions
+**필수 요구사항**:
+- 모든 5개 파일이 존재해야 함: `docs/design/01_screen.md` ~ `05_architecture.md`
+- 데이터 모델에는 엔티티 이름, 필드, 타입, 관계가 포함되어야 함
+- API 스펙에는 HTTP 메서드, 경로, 요청 본문, 응답, 상태 코드가 포함되어야 함
+- 아키텍처는 실현 가능하고 Phase 1의 기술 스택과 일치해야 함
 
-**Critical requirements**:
-- Project structure matches the tech stack (e.g., Next.js structure for Next.js project)
-- All key files present: package.json, .gitignore, README.md, config files
-- Tests included with passing status
-- No hardcoded secrets (use .env with .env.example)
-- .env file must be in .gitignore
-- README includes: installation steps, how to run, how to test
+**Phase 3: 개발 (6단계)**
 
-**Phase 4: Testing**
+**수행 사항**:
+1. `/guide/development/`의 모든 6개 개발 가이드를 읽기 (01_setup.md ~ 06_deploy.md)
+2. Phase 2의 설계를 따르는 완전하고 작동하는 코드베이스 생성
+3. Phase 1 기획 문서에 정의된 모든 기능 구현
+4. 테스트 작성 (유닛, 통합, 또는 e2e 적절히)
+5. 배포 설정 생성
+6. 설정 지침이 포함된 포괄적인 README.md 작성
 
-**What to do**:
-1. Verification agent runs automated checks
-2. If verification passes, user review is created
-3. If verification fails, agent reworks (max 3 attempts)
-4. Final validation before task completion
+**필수 요구사항**:
+- 프로젝트 구조가 기술 스택과 일치 (예: Next.js 프로젝트의 경우 Next.js 구조)
+- 모든 주요 파일 존재: package.json, .gitignore, README.md, 설정 파일
+- 통과 상태의 테스트 포함
+- 하드코딩된 시크릿 없음 (.env.example과 함께 .env 사용)
+- .env 파일은 .gitignore에 포함되어야 함
+- README에 포함: 설치 단계, 실행 방법, 테스트 방법
+
+**Phase 4: 검증**
+
+**수행 사항**:
+1. 검증 에이전트가 자동 검사 실행
+2. 검증 통과 시 사용자 리뷰 생성
+3. 검증 실패 시 에이전트가 재작업 (최대 3회 시도)
+4. 태스크 완료 전 최종 검증
 
 ---
 
-### 2. modify_app - Existing Application Modification
+### 2. modify_app - 기존 애플리케이션 수정
 
-**Purpose**: Modify, enhance, or fix existing applications
+**목적**: 기존 애플리케이션 수정, 개선 또는 수정
 
-**Workflow**: 4-Phase-B
+**워크플로우**: 4-Phase-B
 
 ```
-Phase 1: Analysis (분석) - Understand current state
+Phase 1: 분석 (Analysis) - 현재 상태 이해
     ↓
-Phase 2: Planning (계획) - Plan modifications
+Phase 2: 계획 (Planning) - 수정 계획
     ↓
-Phase 3: Implementation (구현) - Execute changes
+Phase 3: 구현 (Implementation) - 변경사항 실행
     ↓
-Phase 4: Testing (검증) - Verify changes
+Phase 4: 검증 (Testing) - 변경사항 확인
 ```
 
-#### Phase 1: Analysis (3 Steps)
+#### Phase 1: 분석 (3단계)
 
-**Purpose**: Thoroughly understand the existing codebase before making any changes
+**목적**: 변경사항을 적용하기 전에 기존 코드베이스를 철저히 이해
 
-| Step | Task | Details |
+| 단계 | 작업 | 세부사항 |
 |------|------|---------|
-| 1 | **Codebase Analysis** | Read and understand existing code structure, patterns, architecture |
-| 2 | **Dependency Analysis** | Identify dependencies, external services, database schemas |
-| 3 | **Impact Analysis** | Assess which components will be affected by the requested changes |
+| 1 | **코드베이스 분석** | 기존 코드 구조, 패턴, 아키텍처 읽고 이해 |
+| 2 | **의존성 분석** | 의존성, 외부 서비스, 데이터베이스 스키마 식별 |
+| 3 | **영향 분석** | 요청된 변경사항에 영향을 받을 컴포넌트 평가 |
 
-**Deliverable**: `docs/analysis/current_state.md`
+**산출물**: `docs/analysis/current_state.md`
 
-**Document must include**:
-- Project structure overview
-- Key components and their responsibilities
-- Data models and database schema
-- API endpoints (if applicable)
-- External dependencies and services
-- Current implementation patterns
-- Areas to be modified
-- Potential impact on other components
+**문서에 포함되어야 할 내용**:
+- 프로젝트 구조 개요
+- 주요 컴포넌트 및 그 책임
+- 데이터 모델 및 데이터베이스 스키마
+- API 엔드포인트 (해당하는 경우)
+- 외부 의존성 및 서비스
+- 현재 구현 패턴
+- 수정할 영역
+- 다른 컴포넌트에 대한 잠재적 영향
 
-**Verification Criteria**:
-- ✅ Complete codebase structure documented
-- ✅ All relevant files and components identified
-- ✅ Dependencies clearly listed
-- ✅ Impact assessment is specific and accurate
-- ✅ Document ≥1000 characters
+**검증 기준**:
+- ✅ 완전한 코드베이스 구조 문서화
+- ✅ 모든 관련 파일 및 컴포넌트 식별
+- ✅ 의존성 명확히 나열
+- ✅ 영향 평가가 구체적이고 정확
+- ✅ 문서 ≥1000자
 
-#### Phase 2: Planning (4 Steps)
+#### Phase 2: 계획 (4단계)
 
-**Purpose**: Create a detailed plan for modifications with risk assessment
+**목적**: 위험 평가를 포함한 수정 상세 계획 생성
 
-| Step | Task | Details |
+| 단계 | 작업 | 세부사항 |
 |------|------|---------|
-| 1 | **Requirements Definition** | Define exactly what needs to change and why |
-| 2 | **Modification Plan** | Plan specific code changes, file by file |
-| 3 | **Risk Assessment** | Identify risks and mitigation strategies |
-| 4 | **Testing Strategy** | Plan how to verify changes work and don't break existing features |
+| 1 | **요구사항 정의** | 무엇을 변경해야 하고 왜 필요한지 정확히 정의 |
+| 2 | **수정 계획** | 파일별 구체적인 코드 변경사항 계획 |
+| 3 | **위험 평가** | 위험 식별 및 완화 전략 수립 |
+| 4 | **테스트 전략** | 변경사항이 작동하고 기존 기능을 깨뜨리지 않는지 확인하는 방법 계획 |
 
-**Deliverable**: `docs/planning/modification_plan.md`
+**산출물**: `docs/planning/modification_plan.md`
 
-**Document must include**:
-- Clear requirements (what to add/modify/remove)
-- Detailed modification plan:
-  - Files to be created
-  - Files to be modified (with specific changes)
-  - Files to be deleted
-- Step-by-step implementation approach
-- Risk assessment:
-  - Breaking changes risks
-  - Performance impact
-  - Security considerations
-  - Backward compatibility
-- Testing strategy:
-  - Which existing tests must pass
-  - New tests to be written
-  - Manual testing scenarios
+**문서에 포함되어야 할 내용**:
+- 명확한 요구사항 (추가/수정/제거할 내용)
+- 상세한 수정 계획:
+  - 생성할 파일
+  - 수정할 파일 (구체적인 변경사항 포함)
+  - 삭제할 파일
+- 단계별 구현 접근 방식
+- 위험 평가:
+  - 호환성 파괴 위험
+  - 성능 영향
+  - 보안 고려사항
+  - 하위 호환성
+- 테스트 전략:
+  - 통과해야 하는 기존 테스트
+  - 작성할 새 테스트
+  - 수동 테스트 시나리오
 
-**Verification Criteria**:
-- ✅ Requirements clearly defined
-- ✅ File-level change plan provided
-- ✅ Risks identified with mitigation strategies
-- ✅ Testing strategy is comprehensive
-- ✅ Document ≥800 characters
+**검증 기준**:
+- ✅ 요구사항 명확히 정의
+- ✅ 파일 수준 변경 계획 제공
+- ✅ 완화 전략이 포함된 위험 식별
+- ✅ 테스트 전략이 포괄적
+- ✅ 문서 ≥800자
 
-#### Phase 3: Implementation (6 Steps)
+#### Phase 3: 구현 (6단계)
 
-**Purpose**: Carefully implement planned changes while preserving existing functionality
+**목적**: 기존 기능을 보존하면서 계획된 변경사항을 신중히 구현
 
-| Step | Task | Details |
+| 단계 | 작업 | 세부사항 |
 |------|------|---------|
-| 1 | **Code Modification** | Implement the planned changes to existing files |
-| 2 | **Refactoring** | Improve code quality if needed (without changing behavior) |
-| 3 | **Documentation Update** | Update inline comments, README, and other docs |
-| 4 | **Dependency Update** | Update package.json, requirements.txt, etc. if needed |
-| 5 | **Configuration Update** | Update config files (.env.example, configs, etc.) |
-| 6 | **Build Verification** | Ensure project builds without errors |
+| 1 | **코드 수정** | 기존 파일에 계획된 변경사항 구현 |
+| 2 | **리팩토링** | 필요시 코드 품질 개선 (동작 변경 없이) |
+| 3 | **문서 업데이트** | 인라인 주석, README 및 기타 문서 업데이트 |
+| 4 | **의존성 업데이트** | 필요시 package.json, requirements.txt 등 업데이트 |
+| 5 | **설정 업데이트** | 설정 파일 업데이트 (.env.example, configs 등) |
+| 6 | **빌드 검증** | 프로젝트가 오류 없이 빌드되는지 확인 |
 
-**Deliverable**: Modified codebase
+**산출물**: 수정된 코드베이스
 
-**Critical requirements**:
-- Preserve existing functionality (no unintended breaking changes)
-- Follow existing code style and patterns
-- Update all affected imports and references
-- Keep existing tests passing (unless intentionally changed)
-- Add new tests for new functionality
-- Update documentation to reflect changes
-- If new dependencies added, document them
-- If config changes needed, update .env.example
+**필수 요구사항**:
+- 기존 기능 보존 (의도하지 않은 호환성 파괴 없음)
+- 기존 코드 스타일 및 패턴 준수
+- 영향을 받는 모든 import 및 참조 업데이트
+- 기존 테스트 통과 유지 (의도적으로 변경하지 않은 경우)
+- 새 기능에 대한 새 테스트 추가
+- 변경사항을 반영하도록 문서 업데이트
+- 새 의존성 추가 시 문서화
+- 설정 변경 필요 시 .env.example 업데이트
 
-**Verification Criteria**:
-- ✅ All planned changes implemented
-- ✅ Existing tests still pass (or properly updated)
-- ✅ New tests added for new functionality
-- ✅ Code builds without errors
-- ✅ Documentation updated
-- ✅ No hardcoded secrets added
-- ✅ Code style matches existing patterns
+**검증 기준**:
+- ✅ 모든 계획된 변경사항 구현
+- ✅ 기존 테스트 여전히 통과 (또는 적절히 업데이트)
+- ✅ 새 기능에 대한 새 테스트 추가
+- ✅ 코드가 오류 없이 빌드
+- ✅ 문서 업데이트
+- ✅ 하드코딩된 시크릿 추가 없음
+- ✅ 코드 스타일이 기존 패턴과 일치
 
-#### Phase 4: Testing (3 Steps)
+#### Phase 4: 검증 (3단계)
 
-**Purpose**: Verify modifications work correctly and don't introduce regressions
+**책임**: Sub-Agent (테스트 실행 및 검증)
 
-| Step | Task | Details |
+**목적**: 수정사항이 올바르게 작동하고 회귀를 도입하지 않는지 확인
+
+| 단계 | 작업 | 세부사항 |
 |------|------|---------|
-| 1 | **Run Existing Tests** | Ensure all existing tests pass (no regressions) |
-| 2 | **Add New Tests** | Write and run tests for new functionality |
-| 3 | **Manual Testing** | Manually verify changes work as expected |
+| 1 | **기존 테스트 실행** | 모든 기존 테스트가 통과하는지 확인 (회귀 없음) |
+| 2 | **새 테스트 추가** | 새 기능에 대한 테스트 작성 및 실행 |
+| 3 | **수동 테스트** | 변경사항이 예상대로 작동하는지 수동 확인 |
 
-**Deliverable**: Test results and verification report
+**산출물**: 테스트 결과 및 검증 보고서
 
-**Testing checklist**:
-- [ ] All existing unit tests pass
-- [ ] All existing integration tests pass
-- [ ] All existing e2e tests pass (if applicable)
-- [ ] New tests written for new features
-- [ ] New tests pass
-- [ ] Manual testing performed:
-  - [ ] New functionality works
-  - [ ] Existing functionality not broken
-  - [ ] Edge cases handled
-  - [ ] Error handling works
-- [ ] No console errors
-- [ ] Performance acceptable
+**중요**: Phase-B에서는 Sub-Agent가 직접 테스트를 실행하고 결과를 보고합니다.
+- Phase-A와 달리 별도의 Verification Agent 없이 Sub-Agent가 검증 수행
 
-**Verification Criteria**:
-- ✅ Test results documented
-- ✅ All tests passing (or failures explained)
-- ✅ Manual testing scenarios executed
-- ✅ No regressions identified
+**테스트 체크리스트**:
+- [ ] 모든 기존 유닛 테스트 통과
+- [ ] 모든 기존 통합 테스트 통과
+- [ ] 모든 기존 e2e 테스트 통과 (해당하는 경우)
+- [ ] 새 기능에 대한 새 테스트 작성
+- [ ] 새 테스트 통과
+- [ ] 수동 테스트 수행:
+  - [ ] 새 기능 작동
+  - [ ] 기존 기능 파괴되지 않음
+  - [ ] 엣지 케이스 처리
+  - [ ] 오류 처리 작동
+- [ ] 콘솔 오류 없음
+- [ ] 성능 허용 가능
 
-### Sub-Agent Instructions for modify_app (Phase-B)
+**검증 기준**:
+- ✅ 테스트 결과 문서화
+- ✅ 모든 테스트 통과 (또는 실패 설명)
+- ✅ 수동 테스트 시나리오 실행
+- ✅ 회귀 식별 없음
 
-**CRITICAL DIFFERENCES from create_app**:
-- Start with EXISTING codebase (not blank slate)
-- NO planning guides to read (analyze autonomously)
-- Focus on PRESERVATION of existing functionality
-- Smaller, focused deliverables (2 docs instead of 14)
+### modify_app (Phase-B)를 위한 서브 에이전트 지침
 
-**Phase 1: Analysis - What to do**:
-1. Request access to existing codebase (may trigger dependency request for file access)
-2. Read and understand the entire project structure
-3. Identify key components, data models, APIs
-4. Document current state thoroughly in `docs/analysis/current_state.md`
-5. Identify exactly which parts need to be modified
+**create_app와의 중요한 차이점**:
+- 기존 코드베이스로 시작 (빈 슬레이트가 아님)
+- 읽을 기획 가이드 없음 (자율적으로 분석)
+- 기존 기능 보존에 초점
+- 더 작고 집중된 산출물 (14개 대신 2개 문서)
 
-**DO NOT**:
-- Make any code changes yet
-- Skip analysis phase
-- Assume how things work without reading code
+**Phase 1: 분석 - 수행 사항**:
+1. 기존 코드베이스에 대한 액세스 요청 (파일 액세스를 위한 의존성 요청 트리거 가능)
+2. 전체 프로젝트 구조 읽고 이해
+3. 주요 컴포넌트, 데이터 모델, API 식별
+4. `docs/analysis/current_state.md`에 현재 상태 철저히 문서화
+5. 수정이 필요한 부분 정확히 식별
 
-**Phase 2: Planning - What to do**:
-1. Define clear requirements for what needs to change
-2. Create file-by-file modification plan
-3. Assess risks (breaking changes, dependencies, performance)
-4. Plan testing strategy (existing tests + new tests)
-5. Document everything in `docs/planning/modification_plan.md`
+**금지 사항**:
+- 아직 코드 변경하지 않기
+- 분석 페이즈 건너뛰지 않기
+- 코드를 읽지 않고 작동 방식을 가정하지 않기
 
-**DO NOT**:
-- Start implementing without a plan
-- Ignore risks and backward compatibility
-- Forget to plan for testing
+**Phase 2: 계획 - 수행 사항**:
+1. 변경이 필요한 사항에 대한 명확한 요구사항 정의
+2. 파일별 수정 계획 생성
+3. 위험 평가 (호환성 파괴 변경, 의존성, 성능)
+4. 테스트 전략 계획 (기존 테스트 + 새 테스트)
+5. `docs/planning/modification_plan.md`에 모든 내용 문서화
 
-**Phase 3: Implementation - What to do**:
-1. Follow the modification plan exactly
-2. Make changes incrementally (one component at a time)
-3. Preserve existing code style and patterns
-4. Update all related files (imports, configs, docs)
-5. Ensure project builds after each change
-6. Write tests for new functionality
+**금지 사항**:
+- 계획 없이 구현 시작하지 않기
+- 위험 및 하위 호환성 무시하지 않기
+- 테스트 계획 잊지 않기
 
-**DO NOT**:
-- Make unplanned changes
-- Break existing functionality
-- Ignore existing code style
-- Forget to update documentation
-- Add hardcoded secrets
+**Phase 3: 구현 - 수행 사항**:
+1. 수정 계획 정확히 따르기
+2. 점진적으로 변경 (한 번에 하나의 컴포넌트)
+3. 기존 코드 스타일 및 패턴 보존
+4. 모든 관련 파일 업데이트 (imports, configs, docs)
+5. 각 변경 후 프로젝트 빌드 확인
+6. 새 기능에 대한 테스트 작성
 
-**Phase 4: Testing - What to do**:
-1. Run all existing tests and verify they pass
-2. Run new tests for new functionality
-3. Perform manual testing of changed features
-4. Document test results
-5. Verify no regressions introduced
+**금지 사항**:
+- 계획에 없는 변경 하지 않기
+- 기존 기능 깨뜨리지 않기
+- 기존 코드 스타일 무시하지 않기
+- 문서 업데이트 잊지 않기
+- 하드코딩된 시크릿 추가하지 않기
 
-**DO NOT**:
-- Skip testing existing functionality
-- Assume existing tests are sufficient for new features
-- Ignore test failures
+**Phase 4: 검증 - 수행 사항**:
+1. 모든 기존 테스트를 실행하고 통과하는지 확인
+2. 새 기능에 대한 새 테스트 실행
+3. 변경된 기능의 수동 테스트 수행
+4. 테스트 결과 문서화
+5. 회귀가 도입되지 않았는지 확인
+
+**금지 사항**:
+- 기존 기능 테스트 건너뛰지 않기
+- 기존 테스트가 새 기능에 충분하다고 가정하지 않기
+- 테스트 실패 무시하지 않기
 
 ---
 
-### 3. workflow - Workflow Automation
+### 3. workflow - 워크플로우 자동화
 
-**Purpose**: Create automated workflows and integrations
+**목적**: 자동화된 워크플로우 및 통합 생성
 
-**Workflow**: 4-Phase-C
+**워크플로우**: 4-Phase-C
 
 ```
-Phase 1: Planning (기획) - Define workflow requirements
+Phase 1: 기획 (Planning) - 워크플로우 요구사항 정의
     ↓
-Phase 2: Design (설계) - Design workflow logic
+Phase 2: 설계 (Design) - 워크플로우 로직 설계
     ↓
-Phase 3: Development (개발) - Implement workflow
+Phase 3: 개발 (Development) - 워크플로우 구현
     ↓
-Phase 4: Testing (테스트) - Test workflow execution
+Phase 4: 검증 (Testing) - 워크플로우 실행 검증
 ```
 
-**Workflow-Specific Focus**:
-- **Triggers**: Schedule (cron), webhook, manual, event-based
-- **Steps**: Actions, conditions, loops, parallel execution
-- **Integrations**: External services (Slack, GitHub, email, databases)
-- **Error Handling**: Retries, fallbacks, notifications
-- **State Management**: Workflow state, data passing between steps
+**워크플로우 특화 초점**:
+- **트리거**: 스케줄 (cron), 웹훅, 수동, 이벤트 기반
+- **단계**: 액션, 조건, 루프, 병렬 실행
+- **통합**: 외부 서비스 (Slack, GitHub, email, databases)
+- **오류 처리**: 재시도, 폴백, 알림
+- **상태 관리**: 워크플로우 상태, 단계 간 데이터 전달
 
-#### Phase 1: Planning (Workflow Requirements)
+#### Phase 1: 기획 (워크플로우 요구사항)
 
-**Purpose**: Define comprehensive workflow requirements including triggers and integrations
+**목적**: 트리거 및 통합을 포함한 포괄적인 워크플로우 요구사항 정의
 
-**Deliverable**: `docs/planning/workflow_requirements.md`
+**산출물**: `docs/planning/workflow_requirements.md`
 
-**Document must include**:
+**문서에 포함되어야 할 내용**:
 
-1. **Workflow Overview**:
-   - Name and purpose
-   - What problem it solves
-   - Expected outcomes
+1. **워크플로우 개요**:
+   - 이름 및 목적
+   - 해결하는 문제
+   - 예상 결과
 
-2. **Trigger Definition**:
-   - **Type**: schedule | webhook | manual | event
-   - **Configuration**:
-     - Schedule: Cron expression (e.g., `0 9 * * 1-5` for weekdays at 9am)
-     - Webhook: Expected payload structure, authentication
-     - Manual: Input parameters
-     - Event: Event source and filters
+2. **트리거 정의**:
+   - **타입**: schedule | webhook | manual | event
+   - **설정**:
+     - Schedule: Cron 표현식 (예: 평일 오전 9시를 위한 `0 9 * * 1-5`)
+     - Webhook: 예상 페이로드 구조, 인증
+     - Manual: 입력 매개변수
+     - Event: 이벤트 소스 및 필터
 
-3. **Workflow Steps** (high-level):
-   - Step 1: Action name and purpose
-   - Step 2: Action name and purpose
+3. **워크플로우 단계** (고수준):
+   - 단계 1: 액션 이름 및 목적
+   - 단계 2: 액션 이름 및 목적
    - ...
-   - Conditions and branching logic
-   - Loop/iteration requirements
+   - 조건 및 분기 로직
+   - 루프/반복 요구사항
 
-4. **External Integrations**:
-   - Service 1: Purpose, API used, authentication method
-   - Service 2: Purpose, API used, authentication method
+4. **외부 통합**:
+   - 서비스 1: 목적, 사용된 API, 인증 방법
+   - 서비스 2: 목적, 사용된 API, 인증 방법
    - ...
 
-5. **Data Requirements**:
-   - Input data (from trigger)
-   - Data passed between steps
-   - Output data (result)
+5. **데이터 요구사항**:
+   - 입력 데이터 (트리거로부터)
+   - 단계 간 전달되는 데이터
+   - 출력 데이터 (결과)
 
-6. **Error Handling Requirements**:
-   - Retry strategies
-   - Fallback behaviors
-   - Error notifications
+6. **오류 처리 요구사항**:
+   - 재시도 전략
+   - 폴백 동작
+   - 오류 알림
 
-7. **Success Criteria**:
-   - How to determine workflow succeeded
-   - Expected execution time
-   - Performance requirements
+7. **성공 기준**:
+   - 워크플로우 성공 여부 판단 방법
+   - 예상 실행 시간
+   - 성능 요구사항
 
-**Verification Criteria**:
-- ✅ Trigger type and config clearly defined
-- ✅ All workflow steps listed
-- ✅ External integrations identified
-- ✅ Error handling strategy specified
-- ✅ Document ≥800 characters
+**검증 기준**:
+- ✅ 트리거 타입 및 설정 명확히 정의
+- ✅ 모든 워크플로우 단계 나열
+- ✅ 외부 통합 식별
+- ✅ 오류 처리 전략 지정
+- ✅ 문서 ≥800자
 
-#### Phase 2: Design (Workflow Logic)
+#### Phase 2: 설계 (워크플로우 로직)
 
-**Purpose**: Design detailed workflow logic with step-by-step execution plan
+**목적**: 단계별 실행 계획이 포함된 상세한 워크플로우 로직 설계
 
-**Deliverable**: `docs/design/workflow_design.md`
+**산출물**: `docs/design/workflow_design.md`
 
-**Document must include**:
+**문서에 포함되어야 할 내용**:
 
-1. **Workflow Diagram** (text-based or mermaid):
+1. **워크플로우 다이어그램** (텍스트 기반 또는 mermaid):
 ```
 Trigger → Step 1 → Condition → Step 2A
                             └→ Step 2B → Step 3 → End
 ```
 
-2. **Step Definitions** (detailed):
+2. **단계 정의** (상세):
 
-For each step:
+각 단계마다:
 ```
-Step N: [Name]
-  Purpose: What this step does
-  Input: Data received from previous step
-  Action: Specific action to perform
-  Integration: External service API call (if any)
-  Output: Data produced for next step
-  Error Handling: What happens if this step fails
-  Retry: Retry count and delay
-```
-
-3. **Condition Logic**:
-   - If/else conditions
-   - Switch cases
-   - Filtering logic
-
-4. **Loop Logic** (if applicable):
-   - Iteration over arrays
-   - While loop conditions
-   - Break/continue criteria
-
-5. **Data Flow**:
-   - Data structure at each step
-   - Data transformations
-   - Variables and state
-
-6. **Integration Specifications**:
-
-For each integration:
-```
-Service: [Name]
-  API Endpoint: [URL]
-  Method: GET/POST/PUT/DELETE
-  Authentication: API key / OAuth / Basic
-  Request: [Structure]
-  Response: [Structure]
-  Rate Limits: [Limits]
-  Error Codes: [Codes and meanings]
+Step N: [이름]
+  목적: 이 단계가 수행하는 작업
+  입력: 이전 단계로부터 받은 데이터
+  액션: 수행할 구체적인 액션
+  통합: 외부 서비스 API 호출 (있는 경우)
+  출력: 다음 단계를 위해 생성된 데이터
+  오류 처리: 이 단계가 실패할 경우 발생하는 일
+  재시도: 재시도 횟수 및 지연
 ```
 
-7. **State Management**:
-   - Workflow state structure
-   - State persistence (if needed)
-   - State cleanup
+3. **조건 로직**:
+   - If/else 조건
+   - Switch 케이스
+   - 필터링 로직
 
-**Verification Criteria**:
-- ✅ Workflow diagram provided
-- ✅ All steps defined in detail
-- ✅ Conditions and loops specified
-- ✅ Data flow documented
-- ✅ Integration specs complete
-- ✅ Document ≥1000 characters
+4. **루프 로직** (해당하는 경우):
+   - 배열 반복
+   - While 루프 조건
+   - Break/continue 기준
 
-#### Phase 3: Development (Workflow Implementation)
+5. **데이터 흐름**:
+   - 각 단계의 데이터 구조
+   - 데이터 변환
+   - 변수 및 상태
 
-**Purpose**: Implement the workflow with all triggers, steps, and integrations
+6. **통합 명세**:
 
-**Deliverable**: Complete workflow codebase
+각 통합마다:
+```
+서비스: [이름]
+  API 엔드포인트: [URL]
+  메서드: GET/POST/PUT/DELETE
+  인증: API key / OAuth / Basic
+  요청: [구조]
+  응답: [구조]
+  레이트 리미트: [제한]
+  오류 코드: [코드 및 의미]
+```
 
-**Implementation must include**:
+7. **상태 관리**:
+   - 워크플로우 상태 구조
+   - 상태 지속성 (필요한 경우)
+   - 상태 정리
 
-1. **Project Structure**:
+**검증 기준**:
+- ✅ 워크플로우 다이어그램 제공
+- ✅ 모든 단계 상세 정의
+- ✅ 조건 및 루프 지정
+- ✅ 데이터 흐름 문서화
+- ✅ 통합 스펙 완성
+- ✅ 문서 ≥1000자
+
+#### Phase 3: 개발 (워크플로우 구현)
+
+**목적**: 모든 트리거, 단계 및 통합이 포함된 워크플로우 구현
+
+**산출물**: 완전한 워크플로우 코드베이스
+
+**구현에 포함되어야 할 사항**:
+
+1. **프로젝트 구조**:
 ```
 workflow-project/
 ├── src/
 │   ├── triggers/
-│   │   ├── schedule.js       # Schedule trigger handler
-│   │   ├── webhook.js        # Webhook trigger handler
-│   │   └── manual.js         # Manual trigger handler
+│   │   ├── schedule.js       # 스케줄 트리거 핸들러
+│   │   ├── webhook.js        # 웹훅 트리거 핸들러
+│   │   └── manual.js         # 수동 트리거 핸들러
 │   ├── steps/
-│   │   ├── step1.js          # Each workflow step
+│   │   ├── step1.js          # 각 워크플로우 단계
 │   │   ├── step2.js
 │   │   └── ...
 │   ├── integrations/
-│   │   ├── slack.js          # External service clients
+│   │   ├── slack.js          # 외부 서비스 클라이언트
 │   │   ├── github.js
 │   │   └── ...
 │   ├── utils/
-│   │   ├── error-handler.js  # Error handling utilities
-│   │   └── retry.js          # Retry logic
-│   └── workflow.js           # Main workflow orchestrator
+│   │   ├── error-handler.js  # 오류 처리 유틸리티
+│   │   └── retry.js          # 재시도 로직
+│   └── workflow.js           # 메인 워크플로우 오케스트레이터
 ├── tests/
-│   ├── unit/                 # Unit tests
-│   ├── integration/          # Integration tests
-│   └── e2e/                  # End-to-end workflow tests
+│   ├── unit/                 # 유닛 테스트
+│   ├── integration/          # 통합 테스트
+│   └── e2e/                  # 엔드투엔드 워크플로우 테스트
 ├── config/
-│   ├── workflow.config.js    # Workflow configuration
+│   ├── workflow.config.js    # 워크플로우 설정
 │   └── integrations.config.js
-├── .env.example              # Environment variable template
+├── .env.example              # 환경 변수 템플릿
 ├── package.json
 └── README.md
 ```
 
-2. **Trigger Implementation**:
-   - Schedule: Cron job setup
-   - Webhook: HTTP endpoint with validation
-   - Manual: CLI or API endpoint
-   - Event: Event listener and handler
+2. **트리거 구현**:
+   - Schedule: Cron 작업 설정
+   - Webhook: 검증이 포함된 HTTP 엔드포인트
+   - Manual: CLI 또는 API 엔드포인트
+   - Event: 이벤트 리스너 및 핸들러
 
-3. **Step Implementation**:
-   - Each step as a separate function/class
-   - Input validation
-   - Action execution
-   - Output generation
-   - Error handling with retries
+3. **단계 구현**:
+   - 각 단계를 별도의 함수/클래스로
+   - 입력 검증
+   - 액션 실행
+   - 출력 생성
+   - 재시도가 포함된 오류 처리
 
-4. **Integration Clients**:
-   - API client for each external service
-   - Authentication handling
-   - Request/response transformation
-   - Error handling
-   - Rate limit handling
+4. **통합 클라이언트**:
+   - 각 외부 서비스에 대한 API 클라이언트
+   - 인증 처리
+   - 요청/응답 변환
+   - 오류 처리
+   - 레이트 리미트 처리
 
-5. **Workflow Orchestrator**:
-   - Execute steps in correct order
-   - Handle conditions and branching
-   - Manage data flow between steps
-   - Handle errors and retries
-   - Log execution progress
+5. **워크플로우 오케스트레이터**:
+   - 올바른 순서로 단계 실행
+   - 조건 및 분기 처리
+   - 단계 간 데이터 흐름 관리
+   - 오류 및 재시도 처리
+   - 실행 진행 상황 로깅
 
-6. **Configuration**:
-   - Workflow settings (timeouts, retries, etc.)
-   - Integration credentials (via env vars)
-   - Environment-specific configs
+6. **설정**:
+   - 워크플로우 설정 (타임아웃, 재시도 등)
+   - 통합 자격 증명 (환경 변수를 통해)
+   - 환경별 설정
 
-7. **Tests**:
-   - Unit tests for each step
-   - Integration tests for external services (with mocks)
-   - End-to-end workflow tests
-   - Error scenario tests
+7. **테스트**:
+   - 각 단계에 대한 유닛 테스트
+   - 외부 서비스에 대한 통합 테스트 (모의 객체 포함)
+   - 엔드투엔드 워크플로우 테스트
+   - 오류 시나리오 테스트
 
-**Verification Criteria**:
-- ✅ All triggers implemented
-- ✅ All steps implemented
-- ✅ All integrations working
-- ✅ Error handling with retries
-- ✅ Tests included and passing
-- ✅ Configuration via env vars
-- ✅ No hardcoded credentials
-- ✅ README with setup and usage instructions
+**검증 기준**:
+- ✅ 모든 트리거 구현
+- ✅ 모든 단계 구현
+- ✅ 모든 통합 작동
+- ✅ 재시도가 포함된 오류 처리
+- ✅ 테스트 포함 및 통과
+- ✅ 환경 변수를 통한 설정
+- ✅ 하드코딩된 자격 증명 없음
+- ✅ 설정 및 사용 지침이 포함된 README
 
-#### Phase 4: Testing (Workflow Execution)
+#### Phase 4: 검증 (워크플로우 실행)
 
-**Purpose**: Test all trigger types, workflow steps, and error scenarios
+**책임**: Sub-Agent (워크플로우 실행 및 검증)
 
-**Deliverable**: Test results and execution logs
+**목적**: 모든 트리거 타입, 워크플로우 단계 및 오류 시나리오 테스트
 
-**Testing checklist**:
+**산출물**: 테스트 결과 및 실행 로그
 
-1. **Trigger Testing**:
-   - [ ] Schedule trigger fires at correct times
-   - [ ] Webhook receives and validates payloads correctly
-   - [ ] Manual trigger accepts correct inputs
-   - [ ] Event trigger listens and responds to events
+**중요**: Phase-C에서는 Sub-Agent가 직접 워크플로우를 테스트하고 결과를 보고합니다.
+- 모든 트리거 타입 실행 테스트
+- 엔드투엔드 워크플로우 검증
+- 오류 시나리오 처리 확인
 
-2. **Step Testing**:
-   - [ ] Each step executes correctly in isolation
-   - [ ] Steps handle inputs correctly
-   - [ ] Steps produce expected outputs
-   - [ ] Conditions and branching work correctly
-   - [ ] Loops iterate correctly
+**테스트 체크리스트**:
 
-3. **Integration Testing**:
-   - [ ] External service calls succeed
-   - [ ] Authentication works
-   - [ ] Request/response handling correct
-   - [ ] Rate limits respected
-   - [ ] API errors handled gracefully
+1. **트리거 테스트**:
+   - [ ] 스케줄 트리거가 올바른 시간에 실행됨
+   - [ ] 웹훅이 페이로드를 올바르게 수신하고 검증함
+   - [ ] 수동 트리거가 올바른 입력을 수락함
+   - [ ] 이벤트 트리거가 이벤트를 수신하고 응답함
 
-4. **End-to-End Testing**:
-   - [ ] Complete workflow executes successfully
-   - [ ] Data flows correctly between steps
-   - [ ] Final output is correct
-   - [ ] Execution time acceptable
+2. **단계 테스트**:
+   - [ ] 각 단계가 독립적으로 올바르게 실행됨
+   - [ ] 단계가 입력을 올바르게 처리함
+   - [ ] 단계가 예상된 출력을 생성함
+   - [ ] 조건 및 분기가 올바르게 작동함
+   - [ ] 루프가 올바르게 반복됨
 
-5. **Error Scenario Testing**:
-   - [ ] Step failures trigger retries
-   - [ ] Max retries exceeded triggers fallback
-   - [ ] Network errors handled
-   - [ ] Invalid inputs rejected
-   - [ ] Error notifications sent
+3. **통합 테스트**:
+   - [ ] 외부 서비스 호출 성공
+   - [ ] 인증 작동
+   - [ ] 요청/응답 처리 올바름
+   - [ ] 레이트 리미트 준수
+   - [ ] API 오류를 우아하게 처리
 
-6. **Performance Testing**:
-   - [ ] Workflow completes within expected time
-   - [ ] No memory leaks
-   - [ ] Resource usage acceptable
+4. **엔드투엔드 테스트**:
+   - [ ] 완전한 워크플로우가 성공적으로 실행됨
+   - [ ] 데이터가 단계 간 올바르게 흐름
+   - [ ] 최종 출력이 올바름
+   - [ ] 실행 시간 허용 가능
 
-**Verification Criteria**:
-- ✅ All tests documented and executed
-- ✅ All tests passing (or failures explained)
-- ✅ Error scenarios tested
-- ✅ Execution logs captured
-- ✅ Performance acceptable
+5. **오류 시나리오 테스트**:
+   - [ ] 단계 실패 시 재시도 트리거
+   - [ ] 최대 재시도 초과 시 폴백 트리거
+   - [ ] 네트워크 오류 처리
+   - [ ] 잘못된 입력 거부
+   - [ ] 오류 알림 전송
 
-### Sub-Agent Instructions for workflow (Phase-C)
+6. **성능 테스트**:
+   - [ ] 워크플로우가 예상 시간 내에 완료됨
+   - [ ] 메모리 누수 없음
+   - [ ] 리소스 사용량 허용 가능
 
-**CRITICAL DIFFERENCES from create_app and modify_app**:
-- Focus on **automation and integration** (not full app)
-- Trigger-driven execution (not user-driven UI)
-- External service integrations are CRITICAL
-- Error handling and retries are ESSENTIAL
-- Smaller codebase but more complex orchestration
+**검증 기준**:
+- ✅ 모든 테스트 문서화 및 실행
+- ✅ 모든 테스트 통과 (또는 실패 설명)
+- ✅ 오류 시나리오 테스트
+- ✅ 실행 로그 캡처
+- ✅ 성능 허용 가능
 
-**Phase 1: Planning - What to do**:
-1. Clearly define the workflow trigger (schedule/webhook/manual/event)
-2. Break down the workflow into discrete steps
-3. Identify ALL external services needed
-4. Plan error handling and retry strategies
-5. Document in `docs/planning/workflow_requirements.md`
+### workflow (Phase-C)를 위한 서브 에이전트 지침
 
-**DO NOT**:
-- Create vague step definitions
-- Forget to specify trigger configuration
-- Ignore error handling
-- Miss external service requirements
+**create_app 및 modify_app와의 중요한 차이점**:
+- **자동화 및 통합**에 초점 (전체 앱이 아님)
+- 트리거 기반 실행 (사용자 기반 UI가 아님)
+- 외부 서비스 통합이 매우 중요
+- 오류 처리 및 재시도가 필수
+- 코드베이스는 더 작지만 오케스트레이션이 더 복잡
 
-**Phase 2: Design - What to do**:
-1. Create workflow diagram showing all steps and conditions
-2. Define each step in detail (input, action, output, errors)
-3. Specify API calls for each integration
-4. Design data flow between steps
-5. Document in `docs/design/workflow_design.md`
+**Phase 1: 기획 - 수행 사항**:
+1. 워크플로우 트리거를 명확히 정의 (schedule/webhook/manual/event)
+2. 워크플로우를 개별 단계로 분해
+3. 필요한 모든 외부 서비스 식별
+4. 오류 처리 및 재시도 전략 계획
+5. `docs/planning/workflow_requirements.md`에 문서화
 
-**DO NOT**:
-- Skip workflow diagram
-- Leave integration specs incomplete
-- Ignore data transformation requirements
-- Forget about state management
+**금지 사항**:
+- 모호한 단계 정의 생성하지 않기
+- 트리거 설정 지정 잊지 않기
+- 오류 처리 무시하지 않기
+- 외부 서비스 요구사항 놓치지 않기
 
-**Phase 3: Development - What to do**:
-1. Create proper project structure (triggers, steps, integrations)
-2. Implement trigger handlers
-3. Implement each workflow step
-4. Create integration clients with error handling
-5. Build workflow orchestrator
-6. Write comprehensive tests
-7. Document setup and usage in README
+**Phase 2: 설계 - 수행 사항**:
+1. 모든 단계 및 조건을 보여주는 워크플로우 다이어그램 생성
+2. 각 단계를 상세히 정의 (입력, 액션, 출력, 오류)
+3. 각 통합에 대한 API 호출 지정
+4. 단계 간 데이터 흐름 설계
+5. `docs/design/workflow_design.md`에 문서화
 
-**DO NOT**:
-- Hardcode credentials (use env vars)
-- Skip error handling and retries
-- Forget integration tests
-- Ignore rate limits for external APIs
-- Create monolithic code (separate concerns)
+**금지 사항**:
+- 워크플로우 다이어그램 건너뛰지 않기
+- 통합 스펙을 불완전하게 남겨두지 않기
+- 데이터 변환 요구사항 무시하지 않기
+- 상태 관리를 잊지 않기
 
-**Phase 4: Testing - What to do**:
-1. Test each trigger type
-2. Test each step individually
-3. Test all integrations (with mocks if needed)
-4. Run end-to-end workflow tests
-5. Test error scenarios and retries
-6. Document all test results
+**Phase 3: 개발 - 수행 사항**:
+1. 적절한 프로젝트 구조 생성 (트리거, 단계, 통합)
+2. 트리거 핸들러 구현
+3. 각 워크플로우 단계 구현
+4. 오류 처리가 포함된 통합 클라이언트 생성
+5. 워크플로우 오케스트레이터 구축
+6. 포괄적인 테스트 작성
+7. README에 설정 및 사용법 문서화
 
-**DO NOT**:
-- Skip testing error scenarios
-- Forget to test all trigger types
-- Ignore integration testing
-- Assume external APIs are always available
+**금지 사항**:
+- 자격 증명 하드코딩하지 않기 (환경 변수 사용)
+- 오류 처리 및 재시도 건너뛰지 않기
+- 통합 테스트 잊지 않기
+- 외부 API에 대한 레이트 리미트 무시하지 않기
+- 모놀리식 코드 생성하지 않기 (관심사 분리)
 
----
+**Phase 4: 검증 - 수행 사항**:
+1. 각 트리거 타입 테스트
+2. 각 단계를 개별적으로 테스트
+3. 모든 통합 테스트 (필요시 모의 객체 사용)
+4. 엔드투엔드 워크플로우 테스트 실행
+5. 오류 시나리오 및 재시도 테스트
+6. 모든 테스트 결과 문서화
 
-### 4. custom - Free-form Conversation
-
-**Purpose**: Handle miscellaneous tasks that don't fit structured workflows
-
-**Workflow**: Type-D (No structured phases)
-
-```
-User prompt → Agent response → Iterative conversation → Completion
-```
-
-**Characteristics**:
-- No fixed phases or deliverables
-- No guide documents to follow
-- No formal verification or review gates
-- Agent uses autonomous decision-making
-- Conversational, iterative approach
-
-**Use Cases**:
-- Q&A and explanations ("Explain how WebSockets work")
-- Code review ("Review this code for security issues")
-- Debugging help ("Why is this error happening?")
-- Quick tasks ("Write a regex to validate email")
-- Research ("Find best practices for React state management")
-- Comparisons ("Compare REST vs GraphQL")
-
-**Sub-Agent Instructions for custom (Type-D)**:
-
-**What to do**:
-1. Read and understand the user's request
-2. Respond naturally and helpfully
-3. If clarification needed, ask questions
-4. Provide thorough, accurate answers
-5. If code is needed, generate it
-6. If research is needed, explain findings
-7. Signal completion when task is done
-
-**DO NOT**:
-- Try to follow Phase-A/B/C workflows
-- Create formal deliverable documents
-- Wait for review gates
-- Request dependencies unless truly needed
-- Over-structure the response
-
-**How to signal completion**:
-- Simply state "Task completed" or similar
-- No formal phase completion protocol needed
-- Agent can continue conversation if user has follow-up questions
-
-**Examples**:
-
-Example 1: Explanation request
-```
-User: "Explain how JWT authentication works"
-Agent: [Provides detailed explanation]
-Agent: "I've explained JWT authentication including structure, signing, and verification. Is there anything specific you'd like me to elaborate on?"
-```
-
-Example 2: Code generation
-```
-User: "Write a function to debounce API calls"
-Agent: [Generates debounce function with explanation]
-Agent: "Here's a debounce function implementation. Would you like me to explain how it works or modify it for your specific use case?"
-```
-
-Example 3: Debugging help
-```
-User: "Why am I getting 'Cannot read property of undefined'?"
-Agent: "This error occurs when... [explanation]"
-Agent: "To fix this, you can... [solutions]"
-Agent: "Would you like me to review your code to identify the exact cause?"
-```
+**금지 사항**:
+- 오류 시나리오 테스트 건너뛰지 않기
+- 모든 트리거 타입 테스트 잊지 않기
+- 통합 테스트 무시하지 않기
+- 외부 API가 항상 사용 가능하다고 가정하지 않기
 
 ---
 
-## Review Gate System
+### 4. custom - 자유 형식 대화
 
-After each phase completion (except custom tasks), a **review gate** is triggered:
+**목적**: 구조화된 워크플로우에 맞지 않는 다양한 태스크 처리
+
+**워크플로우**: Type-D (구조화된 페이즈 없음)
 
 ```
-Phase Completion
+사용자 프롬프트 → 에이전트 응답 → 반복적 대화 → 완료
+```
+
+**특징**:
+- 고정된 페이즈 또는 산출물 없음
+- 따를 가이드 문서 없음
+- 공식 검증 또는 리뷰 게이트 없음
+- 에이전트가 자율적 의사결정 사용
+- 대화형, 반복적 접근 방식
+
+**사용 사례**:
+- Q&A 및 설명 ("WebSocket이 어떻게 작동하는지 설명")
+- 코드 리뷰 ("이 코드의 보안 문제 검토")
+- 디버깅 도움 ("이 오류가 왜 발생하는가?")
+- 빠른 태스크 ("이메일 검증 regex 작성")
+- 연구 ("React 상태 관리 모범 사례 찾기")
+- 비교 ("REST vs GraphQL 비교")
+
+**custom (Type-D)를 위한 서브 에이전트 지침**:
+
+**수행 사항**:
+1. 사용자의 요청 읽고 이해
+2. 자연스럽고 도움이 되게 응답
+3. 명확화가 필요하면 질문
+4. 철저하고 정확한 답변 제공
+5. 코드가 필요하면 생성
+6. 연구가 필요하면 결과 설명
+7. 태스크 완료 시 완료 신호
+
+**금지 사항**:
+- Phase-A/B/C 워크플로우를 따르려고 하지 않기
+- 공식 산출물 문서 생성하지 않기
+- 리뷰 게이트 기다리지 않기
+- 진정으로 필요하지 않으면 의존성 요청하지 않기
+- 응답을 과도하게 구조화하지 않기
+
+**완료 신호 방법**:
+- 단순히 "태스크 완료" 또는 유사한 문구 표현
+- 공식 페이즈 완료 프로토콜 불필요
+- 사용자가 후속 질문이 있으면 에이전트가 대화 계속 가능
+
+**예시**:
+
+예시 1: 설명 요청
+```
+사용자: "JWT 인증이 어떻게 작동하는지 설명해주세요"
+에이전트: [상세한 설명 제공]
+에이전트: "구조, 서명, 검증을 포함한 JWT 인증을 설명했습니다. 더 자세히 설명해드릴 부분이 있나요?"
+```
+
+예시 2: 코드 생성
+```
+사용자: "API 호출을 디바운스하는 함수 작성"
+에이전트: [설명과 함께 디바운스 함수 생성]
+에이전트: "디바운스 함수 구현입니다. 작동 방식을 설명하거나 특정 사용 사례에 맞게 수정해드릴까요?"
+```
+
+예시 3: 디버깅 도움
+```
+사용자: "'Cannot read property of undefined' 오류가 왜 발생하나요?"
+에이전트: "이 오류는... [설명]"
+에이전트: "이를 해결하려면... [해결책]"
+에이전트: "정확한 원인을 파악하기 위해 코드를 검토해드릴까요?"
+```
+
+---
+
+## 리뷰 게이트 시스템
+
+각 페이즈 완료 후 (custom 태스크 제외), **리뷰 게이트**가 트리거됩니다:
+
+```
+페이즈 완료
     ↓
-Automatic Deliverable Collection
+자동 산출물 수집
     ↓
-Verification Check (auto)
-    ├─ Pass → Create Review
-    └─ Fail → Auto-rework (max 3 attempts)
-           ├─ Success → Create Review
-           └─ Still Fail → Notify user
+검증 확인 (자동)
+    ├─ 통과 → 리뷰 생성
+    └─ 실패 → 자동 재작업 (최대 3회 시도)
+           ├─ 성공 → 리뷰 생성
+           └─ 여전히 실패 → 사용자에게 알림
     ↓
-User Review (Web UI)
-    ├─ Approve → Next Phase
-    └─ Request Changes → Rework
+사용자 리뷰 (웹 UI)
+    ├─ 승인 → 다음 페이즈
+    └─ 변경 요청 → 재작업
            ↓
-           Re-verify → Re-review
+           재검증 → 재리뷰
 ```
 
-### Review Process
+### 리뷰 프로세스
 
-1. **Agent signals completion**: `=== PHASE N COMPLETE ===`
-2. **Platform pauses agent**
-3. **Verification agent runs** (separate Claude Code instance)
-4. **Verification report generated**
-5. **If failed**: Auto-rework (max 3 attempts)
-6. **If passed**: Create review for user
-7. **User reviews** deliverables via web UI
-8. **User approves or requests changes**
-9. **If approved**: Agent proceeds to next phase
-10. **If changes requested**: Agent addresses feedback and re-submits
+1. **에이전트가 완료 신호**: `=== PHASE N COMPLETE ===`
+2. **플랫폼이 에이전트 일시정지**
+3. **검증 에이전트 실행** (별도의 Claude Code 인스턴스)
+4. **검증 보고서 생성**
+5. **실패 시**: 자동 재작업 (최대 3회 시도)
+6. **통과 시**: 사용자를 위한 리뷰 생성
+7. **사용자가 리뷰** 웹 UI를 통해 산출물 검토
+8. **사용자가 승인 또는 변경 요청**
+9. **승인 시**: 에이전트가 다음 페이즈로 진행
+10. **변경 요청 시**: 에이전트가 피드백을 처리하고 재제출
 
-### Review UI Features
+### 리뷰 UI 기능
 
-- View all deliverables (documents, code files)
-- Syntax highlighting for code
-- Markdown rendering for docs
-- File-level comments
-- Line-level feedback
-- Overall approval/rejection
-- Feedback submission
+- 모든 산출물 보기 (문서, 코드 파일)
+- 코드 구문 강조
+- 문서 마크다운 렌더링
+- 파일 수준 댓글
+- 라인 수준 피드백
+- 전체 승인/거부
+- 피드백 제출
 
 ---
 
-## Verification System
+## 검증 시스템
 
-### Automated Verification (Workflow-Specific)
+### 자동 검증 (워크플로우별)
 
-**CRITICAL**: Verification criteria differ based on workflow type. The verification agent must identify the task type and apply the correct criteria.
+**중요**: 검증 기준은 워크플로우 타입에 따라 다릅니다. 검증 에이전트는 태스크 타입을 식별하고 올바른 기준을 적용해야 합니다.
 
-### Verification for Phase-A (create_app)
+### Phase-A (create_app)에 대한 검증
 
-After each phase completion, verification agent checks:
+각 페이즈 완료 후, 검증 에이전트가 확인:
 
-**Phase 1 (Planning) - 9 Documents**:
-- ✅ All 9 files exist: `docs/planning/01_idea.md` through `09_roadmap.md`
-- ✅ Each document ≥500 characters
-- ✅ No placeholders: `[TODO]`, `[TBD]`, `[Insert X]`, `Coming soon`, `To be defined`
-- ✅ Section completeness (all sections from guide filled)
-- ✅ Information consistency:
-  - Tech stack consistent between 08_tech.md and future phases
-  - Features in 07_features.md align with product scope in 06_product.md
-  - Target users consistent between 03_persona.md and other docs
-- ✅ Proper markdown formatting
-- ✅ Specific content (not generic templates)
+**Phase 1 (기획) - 9개 문서**:
+- ✅ 모든 9개 파일 존재: `docs/planning/01_idea.md` ~ `09_roadmap.md`
+- ✅ 각 문서 ≥500자
+- ✅ 플레이스홀더 없음: `[TODO]`, `[TBD]`, `[Insert X]`, `Coming soon`, `To be defined`
+- ✅ 섹션 완전성 (가이드의 모든 섹션 채워짐)
+- ✅ 정보 일관성:
+  - 08_tech.md와 향후 페이즈 간 기술 스택 일관성
+  - 07_features.md의 기능이 06_product.md의 제품 범위와 일치
+  - 03_persona.md와 다른 문서 간 타겟 사용자 일관성
+- ✅ 적절한 마크다운 포맷팅
+- ✅ 구체적인 내용 (일반적인 템플릿이 아님)
 
-**Phase 2 (Design) - 5 Documents**:
-- ✅ All 5 files exist: `docs/design/01_screen.md` through `05_architecture.md`
-- ✅ Each document ≥500 characters
-- ✅ Data model defined with specifics:
-  - Entity names listed
-  - Fields with types (string, number, boolean, etc.)
-  - Relationships documented
-- ✅ API specs complete:
-  - HTTP methods (GET, POST, PUT, DELETE)
-  - Paths (e.g., `/api/users/:id`)
-  - Request body structure
-  - Response structure
-  - Status codes
-- ✅ Architecture diagram or detailed description present
-- ✅ Designs are specific and feasible (not vague)
-- ✅ Consistency with Phase 1:
-  - Tech stack matches 08_tech.md
-  - Features match 07_features.md
+**Phase 2 (설계) - 5개 문서**:
+- ✅ 모든 5개 파일 존재: `docs/design/01_screen.md` ~ `05_architecture.md`
+- ✅ 각 문서 ≥500자
+- ✅ 구체적인 데이터 모델 정의:
+  - 엔티티 이름 나열
+  - 타입이 포함된 필드 (string, number, boolean 등)
+  - 관계 문서화
+- ✅ API 스펙 완성:
+  - HTTP 메서드 (GET, POST, PUT, DELETE)
+  - 경로 (예: `/api/users/:id`)
+  - 요청 본문 구조
+  - 응답 구조
+  - 상태 코드
+- ✅ 아키텍처 다이어그램 또는 상세한 설명 존재
+- ✅ 설계가 구체적이고 실현 가능 (모호하지 않음)
+- ✅ Phase 1과의 일관성:
+  - 기술 스택이 08_tech.md와 일치
+  - 기능이 07_features.md와 일치
 
-**Phase 3 (Development) - Codebase**:
-- ✅ Project structure correct for chosen tech stack
-- ✅ Key files present:
-  - `package.json` (Node.js) or equivalent
+**Phase 3 (개발) - 코드베이스**:
+- ✅ 선택한 기술 스택에 맞는 올바른 프로젝트 구조
+- ✅ 주요 파일 존재:
+  - `package.json` (Node.js) 또는 동등한 파일
   - `.gitignore`
   - `README.md`
-  - Configuration files
-- ✅ Tests included (unit, integration, or e2e)
-- ✅ Tests are passing
-- ✅ `.env` listed in `.gitignore`
-- ✅ `.env.example` provided (if env vars needed)
-- ✅ No hardcoded secrets (API keys, passwords, tokens)
-- ✅ README includes:
-  - Project description
-  - Installation steps
-  - How to run
-  - How to test
-  - Environment variables needed
-- ✅ Code quality:
-  - No syntax errors
-  - No obvious bugs
-  - Proper error handling
-  - Comments where needed
+  - 설정 파일
+- ✅ 테스트 포함 (유닛, 통합, 또는 e2e)
+- ✅ 테스트 통과
+- ✅ `.env`가 `.gitignore`에 나열
+- ✅ `.env.example` 제공 (환경 변수가 필요한 경우)
+- ✅ 하드코딩된 시크릿 없음 (API 키, 비밀번호, 토큰)
+- ✅ README 포함:
+  - 프로젝트 설명
+  - 설치 단계
+  - 실행 방법
+  - 테스트 방법
+  - 필요한 환경 변수
+- ✅ 코드 품질:
+  - 구문 오류 없음
+  - 명백한 버그 없음
+  - 적절한 오류 처리
+  - 필요한 곳에 주석
 
-### Verification for Phase-B (modify_app)
+### Phase-B (modify_app)에 대한 검증
 
-**Phase 1 (Analysis) - 1 Document**:
-- ✅ File exists: `docs/analysis/current_state.md`
-- ✅ Document ≥1000 characters
-- ✅ Project structure documented
-- ✅ Key components identified
-- ✅ Dependencies listed
-- ✅ Impact assessment provided
-- ✅ Areas to modify clearly identified
-- ✅ Analysis is accurate (verified against actual codebase)
+**Phase 1 (분석) - 1개 문서**:
+- ✅ 파일 존재: `docs/analysis/current_state.md`
+- ✅ 문서 ≥1000자
+- ✅ 프로젝트 구조 문서화
+- ✅ 주요 컴포넌트 식별
+- ✅ 의존성 나열
+- ✅ 영향 평가 제공
+- ✅ 수정할 영역 명확히 식별
+- ✅ 분석이 정확함 (실제 코드베이스와 검증)
 
-**Phase 2 (Planning) - 1 Document**:
-- ✅ File exists: `docs/planning/modification_plan.md`
-- ✅ Document ≥800 characters
-- ✅ Requirements clearly defined
-- ✅ File-level change plan provided:
-  - Files to create (with purpose)
-  - Files to modify (with changes)
-  - Files to delete (with reason)
-- ✅ Risk assessment included
-- ✅ Testing strategy defined
-- ✅ Plan is realistic and specific
+**Phase 2 (계획) - 1개 문서**:
+- ✅ 파일 존재: `docs/planning/modification_plan.md`
+- ✅ 문서 ≥800자
+- ✅ 요구사항 명확히 정의
+- ✅ 파일 수준 변경 계획 제공:
+  - 생성할 파일 (목적 포함)
+  - 수정할 파일 (변경사항 포함)
+  - 삭제할 파일 (이유 포함)
+- ✅ 위험 평가 포함
+- ✅ 테스트 전략 정의
+- ✅ 계획이 현실적이고 구체적
 
-**Phase 3 (Implementation) - Modified Code**:
-- ✅ All planned changes implemented
-- ✅ Existing functionality preserved (no unintended breaking changes)
-- ✅ Code style matches existing patterns
-- ✅ All imports and references updated
-- ✅ Documentation updated to reflect changes
-- ✅ New dependencies documented (if any)
-- ✅ Configuration files updated (if needed)
-- ✅ `.env.example` updated (if new env vars added)
-- ✅ No hardcoded secrets
-- ✅ Project builds without errors
+**Phase 3 (구현) - 수정된 코드**:
+- ✅ 모든 계획된 변경사항 구현
+- ✅ 기존 기능 보존 (의도하지 않은 호환성 파괴 없음)
+- ✅ 코드 스타일이 기존 패턴과 일치
+- ✅ 모든 import 및 참조 업데이트
+- ✅ 변경사항을 반영하도록 문서 업데이트
+- ✅ 새 의존성 문서화 (있는 경우)
+- ✅ 설정 파일 업데이트 (필요한 경우)
+- ✅ `.env.example` 업데이트 (새 환경 변수 추가 시)
+- ✅ 하드코딩된 시크릿 없음
+- ✅ 프로젝트가 오류 없이 빌드
 
-**Phase 4 (Testing) - Test Results**:
-- ✅ Test results documented
-- ✅ All existing tests still pass (or updated appropriately)
-- ✅ New tests added for new functionality
-- ✅ New tests pass
-- ✅ Manual testing documented
-- ✅ No regressions identified
+**Phase 4 (검증) - 검증 결과**:
+- ✅ 테스트 결과 문서화
+- ✅ 모든 기존 테스트 여전히 통과 (또는 적절히 업데이트)
+- ✅ 새 기능에 대한 새 테스트 추가
+- ✅ 새 테스트 통과
+- ✅ 수동 테스트 문서화
+- ✅ 회귀 식별 없음
 
-### Verification for Phase-C (workflow)
+### Phase-C (workflow)에 대한 검증
 
-**Phase 1 (Planning) - Workflow Requirements**:
-- ✅ File exists: `docs/planning/workflow_requirements.md`
-- ✅ Document ≥800 characters
-- ✅ Workflow overview provided
-- ✅ Trigger type and configuration defined
-- ✅ Workflow steps listed (high-level)
-- ✅ External integrations identified
-- ✅ Error handling strategy specified
-- ✅ Success criteria defined
-- ✅ Requirements are specific and actionable
+**Phase 1 (기획) - 워크플로우 요구사항**:
+- ✅ 파일 존재: `docs/planning/workflow_requirements.md`
+- ✅ 문서 ≥800자
+- ✅ 워크플로우 개요 제공
+- ✅ 트리거 타입 및 설정 정의
+- ✅ 워크플로우 단계 나열 (고수준)
+- ✅ 외부 통합 식별
+- ✅ 오류 처리 전략 지정
+- ✅ 성공 기준 정의
+- ✅ 요구사항이 구체적이고 실행 가능
 
-**Phase 2 (Design) - Workflow Logic**:
-- ✅ File exists: `docs/design/workflow_design.md`
-- ✅ Document ≥1000 characters
-- ✅ Workflow diagram provided (text or mermaid)
-- ✅ All steps defined in detail:
-  - Input, action, output
-  - Error handling, retries
-- ✅ Conditions and branching logic specified
-- ✅ Data flow documented
-- ✅ Integration specifications complete:
-  - API endpoints, methods
-  - Authentication methods
-  - Request/response structures
-- ✅ State management defined (if needed)
-- ✅ Design is feasible and complete
+**Phase 2 (설계) - 워크플로우 로직**:
+- ✅ 파일 존재: `docs/design/workflow_design.md`
+- ✅ 문서 ≥1000자
+- ✅ 워크플로우 다이어그램 제공 (텍스트 또는 mermaid)
+- ✅ 모든 단계 상세 정의:
+  - 입력, 액션, 출력
+  - 오류 처리, 재시도
+- ✅ 조건 및 분기 로직 지정
+- ✅ 데이터 흐름 문서화
+- ✅ 통합 명세 완성:
+  - API 엔드포인트, 메서드
+  - 인증 방법
+  - 요청/응답 구조
+- ✅ 상태 관리 정의 (필요한 경우)
+- ✅ 설계가 실현 가능하고 완전함
 
-**Phase 3 (Development) - Workflow Code**:
-- ✅ Project structure appropriate for workflow
-- ✅ Trigger handlers implemented (schedule/webhook/manual/event)
-- ✅ All workflow steps implemented
-- ✅ Integration clients implemented
-- ✅ Error handling with retries
-- ✅ Configuration via env vars (no hardcoded credentials)
-- ✅ Tests included:
-  - Unit tests for steps
-  - Integration tests for external services
-  - End-to-end workflow tests
-- ✅ Tests passing
-- ✅ README with setup and usage instructions
-- ✅ `.env.example` provided
-- ✅ Code builds and runs without errors
+**Phase 3 (개발) - 워크플로우 코드**:
+- ✅ 워크플로우에 적합한 프로젝트 구조
+- ✅ 트리거 핸들러 구현 (schedule/webhook/manual/event)
+- ✅ 모든 워크플로우 단계 구현
+- ✅ 통합 클라이언트 구현
+- ✅ 재시도가 포함된 오류 처리
+- ✅ 환경 변수를 통한 설정 (하드코딩된 자격 증명 없음)
+- ✅ 테스트 포함:
+  - 단계에 대한 유닛 테스트
+  - 외부 서비스에 대한 통합 테스트
+  - 엔드투엔드 워크플로우 테스트
+- ✅ 테스트 통과
+- ✅ 설정 및 사용 지침이 포함된 README
+- ✅ `.env.example` 제공
+- ✅ 코드가 오류 없이 빌드되고 실행됨
 
-**Phase 4 (Testing) - Workflow Execution**:
-- ✅ All trigger types tested
-- ✅ All steps tested individually
-- ✅ All integrations tested
-- ✅ End-to-end workflow tested
-- ✅ Error scenarios tested
-- ✅ Test results documented
-- ✅ All tests passing
-- ✅ Performance acceptable
+**Phase 4 (검증) - 워크플로우 실행**:
+- ✅ 모든 트리거 타입 테스트
+- ✅ 모든 단계 개별적으로 테스트
+- ✅ 모든 통합 테스트
+- ✅ 엔드투엔드 워크플로우 테스트
+- ✅ 오류 시나리오 테스트
+- ✅ 테스트 결과 문서화
+- ✅ 모든 테스트 통과
+- ✅ 성능 허용 가능
 
-### Verification for Type-D (custom)
+### Type-D (custom)에 대한 검증
 
-**No formal verification** - custom tasks have no structured deliverables or phases.
+**공식 검증 없음** - custom 태스크는 구조화된 산출물이나 페이즈가 없습니다.
 
-Quality assessed by:
-- User satisfaction with response
-- Accuracy of information provided
-- Helpfulness of answer
-- Completeness of solution
+품질 평가 기준:
+- 응답에 대한 사용자 만족도
+- 제공된 정보의 정확성
+- 답변의 유용성
+- 솔루션의 완전성
 
-### Auto-Rework
+### 자동 재작업
 
-If verification fails:
+검증 실패 시:
 
 ```
-Attempt 1: Rework
-    ├─ Success → Pass
-    └─ Fail → Attempt 2: Rework
-           ├─ Success → Pass
-           └─ Fail → Attempt 3: Rework
-                  ├─ Success → Pass
-                  └─ Fail → Notify user (manual intervention)
+시도 1: 재작업
+    ├─ 성공 → 통과
+    └─ 실패 → 시도 2: 재작업
+           ├─ 성공 → 통과
+           └─ 실패 → 시도 3: 재작업
+                  ├─ 성공 → 통과
+                  └─ 실패 → 사용자에게 알림 (수동 개입)
 ```
 
-Each rework attempt:
-1. Agent receives verification report
-2. Agent addresses failed criteria
-3. Agent regenerates/fixes deliverables
-4. Re-verification runs
+각 재작업 시도:
+1. 에이전트가 검증 보고서 수신
+2. 에이전트가 실패한 기준 처리
+3. 에이전트가 산출물 재생성/수정
+4. 재검증 실행
 
 ---
 
-## Dependency Handling
+## 질문 처리
 
-When agent needs external resources:
+에이전트가 명확화가 필요한 경우:
 
 ```
-Agent outputs [DEPENDENCY_REQUEST]
+에이전트가 [USER_QUESTION] 출력
     ↓
-Platform detects protocol
+플랫폼이 프로토콜 감지
     ↓
-Agent pauses (SIGTSTP)
+에이전트 일시정지
     ↓
-Checkpoint created
+사용자에게 알림
     ↓
-User notified (SSE + UI)
+사용자가 질문에 답변
     ↓
-User provides dependency value
+답변이 에이전트로 전송
     ↓
-Value encrypted and stored
+에이전트 재개
     ↓
-Environment variable injected
-    ↓
-Agent resumes (SIGCONT)
-    ↓
-Agent continues with dependency available
+에이전트가 답변을 사용하여 진행
 ```
 
-### Dependency Types
+### 질문 카테고리
 
-- **api_key**: API keys (e.g., OPENAI_API_KEY)
-- **env_variable**: Environment variables (e.g., DATABASE_URL)
-- **service**: External services (e.g., Redis, PostgreSQL)
-- **file**: Files needed (e.g., logo.png, config.json)
-- **permission**: Permissions (e.g., docker access)
-- **package**: System packages (e.g., ffmpeg)
+- **business**: 비즈니스 결정 (가격, 기능, 타겟 시장)
+- **clarification**: 불명확한 요구사항
+- **choice**: 여러 유효한 접근 방식
+- **confirmation**: 주요 결정 확인
 
 ---
 
-## Question Handling
+## 체크포인트 시스템
 
-When agent needs clarification:
+체크포인트는 복구를 위해 에이전트 상태를 저장합니다:
 
-```
-Agent outputs [USER_QUESTION]
-    ↓
-Platform detects protocol
-    ↓
-Agent pauses
-    ↓
-User notified
-    ↓
-User answers question
-    ↓
-Answer sent to agent
-    ↓
-Agent resumes
-    ↓
-Agent uses answer to proceed
-```
+### 체크포인트 트리거
 
-### Question Categories
+1. **자동**: 주기적 (10분마다)
+2. **레이트 리미트**: API 레이트 리미트 도달 시
+3. **수동**: 사용자 시작 일시정지
+4. **오류**: 오류 발생 시
+5. **페이즈 완료**: 각 페이즈 후
 
-- **business**: Business decisions (pricing, features, target market)
-- **clarification**: Unclear requirements
-- **choice**: Multiple valid approaches
-- **confirmation**: Confirm major decisions
+### 체크포인트 내용
 
----
+- 대화 기록 (전체 컨텍스트)
+- 현재 페이즈 및 단계
+- 진행률 백분율
+- 환경 상태
+- 대기 중인 액션
+- 토큰 사용량
 
-## Checkpoint System
+### 복구
 
-Checkpoints save agent state for recovery:
-
-### Checkpoint Triggers
-
-1. **Auto**: Periodic (every 10 minutes)
-2. **Rate Limit**: When API rate limit hit
-3. **Manual**: User-initiated pause
-4. **Error**: When error occurs
-5. **Phase Complete**: After each phase
-
-### Checkpoint Contents
-
-- Conversation history (full context)
-- Current phase and step
-- Progress percentage
-- Environment state
-- Pending actions
-- Token usage
-
-### Recovery
-
-On resume:
-1. Restore conversation history
-2. Reinject environment variables
-3. Resume from last checkpoint
-4. Continue execution
+재개 시:
+1. 대화 기록 복원
+2. 환경 변수 재주입
+3. 마지막 체크포인트부터 재개
+4. 실행 계속
 
 ---
 
-## Progress Tracking
+## 진행 추적
 
-Progress calculated as:
+진행률 계산:
 
 ```typescript
 progress = (
@@ -1168,58 +1150,58 @@ progress = (
 ) / 100
 ```
 
-**Example** (create_app at Phase 2, Step 3 of 5):
+**예시** (create_app Phase 2, 5단계 중 3단계):
 ```
-Phase 1: Complete (25%)
-Phase 2: In progress (3/5 steps = 15%)
-Phase 3: Pending (0%)
-Phase 4: Pending (0%)
+Phase 1: 완료 (25%)
+Phase 2: 진행 중 (3/5 단계 = 15%)
+Phase 3: 대기 중 (0%)
+Phase 4: 대기 중 (0%)
 
-Total: 25% + 15% = 40%
+총계: 25% + 15% = 40%
 ```
 
-### Real-time Updates
+### 실시간 업데이트
 
-Progress updates sent via SSE:
-- Phase started/completed
-- Step started/completed
-- Document created
-- Action performed
+SSE를 통해 전송되는 진행 업데이트:
+- 페이즈 시작/완료
+- 단계 시작/완료
+- 문서 생성
+- 액션 수행
 
 ---
 
-## Error Handling
+## 오류 처리
 
-### Error Types
+### 오류 타입
 
-1. **Execution Error**: Agent encounters error during execution
-2. **Verification Error**: Deliverables fail verification
-3. **Rate Limit Error**: API rate limit exceeded
-4. **System Error**: Platform or infrastructure error
+1. **실행 오류**: 실행 중 에이전트가 오류 발생
+2. **검증 오류**: 산출물 검증 실패
+3. **레이트 리미트 오류**: API 레이트 리미트 초과
+4. **시스템 오류**: 플랫폼 또는 인프라 오류
 
-### Error Recovery
+### 오류 복구
 
 ```
-Error detected
+오류 감지
     ↓
-Create checkpoint
+체크포인트 생성
     ↓
-Pause agent
+에이전트 일시정지
     ↓
-Log error details
+오류 세부사항 로깅
     ↓
-Notify user
+사용자에게 알림
     ↓
-Attempt recovery (if possible)
-    ├─ Success → Resume
-    └─ Fail → Manual intervention
+복구 시도 (가능한 경우)
+    ├─ 성공 → 재개
+    └─ 실패 → 수동 개입
 ```
 
 ---
 
-## State Machine
+## 상태 머신
 
-### Task States
+### 태스크 상태
 
 ```
 draft → pending → in_progress → review → completed
@@ -1227,7 +1209,7 @@ draft → pending → in_progress → review → completed
                    failed
 ```
 
-### Agent States
+### 에이전트 상태
 
 ```
 idle → running → waiting_review → running → completed
@@ -1239,347 +1221,347 @@ idle → running → waiting_review → running → completed
 
 ---
 
-## Best Practices
+## 모범 사례
 
-### For Sub-Agents (Workflow-Specific)
+### 서브 에이전트를 위한 (워크플로우별)
 
-#### Phase-A (create_app) Best Practices
+#### Phase-A (create_app) 모범 사례
 
-1. **Read ALL guides before starting each phase**
-   - Phase 1: Read all 9 planning guides
-   - Phase 2: Read all 5 design guides
-   - Phase 3: Read all 6 development guides
+1. **각 페이즈 시작 전에 모든 가이드 읽기**
+   - Phase 1: 모든 9개 기획 가이드 읽기
+   - Phase 2: 모든 5개 설계 가이드 읽기
+   - Phase 3: 모든 6개 개발 가이드 읽기
 
-2. **Generate complete, specific content**
-   - No placeholders: `[TODO]`, `[TBD]`, `[Insert X]`
-   - Use specific examples, not generic descriptions
-   - Define concrete features, not "various features"
+2. **완전하고 구체적인 내용 생성**
+   - 플레이스홀더 금지: `[TODO]`, `[TBD]`, `[Insert X]`
+   - 일반적인 설명이 아닌 구체적인 예시 사용
+   - "다양한 기능"이 아닌 구체적인 기능 정의
 
-3. **Maintain consistency across phases**
-   - Tech stack in Phase 1 must match architecture in Phase 2 and code in Phase 3
-   - Features defined in Phase 1 must be designed in Phase 2 and implemented in Phase 3
+3. **페이즈 간 일관성 유지**
+   - Phase 1의 기술 스택이 Phase 2의 아키텍처 및 Phase 3의 코드와 일치해야 함
+   - Phase 1에 정의된 기능이 Phase 2에 설계되고 Phase 3에 구현되어야 함
 
-4. **Follow verification criteria**
-   - Review criteria before completing each phase
-   - Self-check deliverables against criteria
-   - Fix issues before signaling completion
+4. **검증 기준 준수**
+   - 각 페이즈 완료 전 기준 검토
+   - 기준에 대해 산출물 자체 확인
+   - 완료 신호 전 문제 수정
 
-5. **Request dependencies early**
-   - If external services needed, request API keys in Phase 1
-   - Don't wait until Phase 3 to request dependencies
+5. **의존성 조기 요청**
+   - 외부 서비스가 필요한 경우 Phase 1에서 API 키 요청
+   - Phase 3까지 기다리지 말고 의존성 요청
 
-#### Phase-B (modify_app) Best Practices
+#### Phase-B (modify_app) 모범 사례
 
-1. **Thoroughly analyze before modifying**
-   - Read entire codebase before planning changes
-   - Understand existing patterns and architecture
-   - Identify all affected components
+1. **수정 전에 철저히 분석**
+   - 변경 계획 전에 전체 코드베이스 읽기
+   - 기존 패턴 및 아키텍처 이해
+   - 영향을 받는 모든 컴포넌트 식별
 
-2. **Preserve existing functionality**
-   - Don't break existing features
-   - Maintain backward compatibility when possible
-   - Keep existing tests passing
+2. **기존 기능 보존**
+   - 기존 기능 깨뜨리지 않기
+   - 가능한 경우 하위 호환성 유지
+   - 기존 테스트 통과 유지
 
-3. **Follow existing code style**
-   - Match indentation, naming conventions
-   - Use same libraries and patterns
-   - Don't introduce inconsistent patterns
+3. **기존 코드 스타일 준수**
+   - 들여쓰기, 명명 규칙 일치
+   - 동일한 라이브러리 및 패턴 사용
+   - 일관되지 않은 패턴 도입하지 않기
 
-4. **Test extensively**
-   - Run all existing tests after changes
-   - Add new tests for new functionality
-   - Test edge cases and error scenarios
+4. **광범위한 테스트**
+   - 변경 후 모든 기존 테스트 실행
+   - 새 기능에 대한 새 테스트 추가
+   - 엣지 케이스 및 오류 시나리오 테스트
 
-5. **Document all changes**
-   - Update README if setup changes
-   - Update inline comments if logic changes
-   - Add changelog entry if significant change
+5. **모든 변경사항 문서화**
+   - 설정 변경 시 README 업데이트
+   - 로직 변경 시 인라인 주석 업데이트
+   - 중요한 변경 시 변경 로그 항목 추가
 
-#### Phase-C (workflow) Best Practices
+#### Phase-C (workflow) 모범 사례
 
-1. **Define triggers clearly**
-   - Specify exact cron expression for schedule triggers
-   - Define complete webhook payload structure
-   - Document all trigger configurations
+1. **트리거 명확히 정의**
+   - 스케줄 트리거에 대한 정확한 cron 표현식 지정
+   - 완전한 웹훅 페이로드 구조 정의
+   - 모든 트리거 설정 문서화
 
-2. **Design for failure**
-   - Implement retries with exponential backoff
-   - Add fallback behaviors for critical steps
-   - Send notifications on failures
+2. **실패를 위한 설계**
+   - 지수 백오프를 사용한 재시도 구현
+   - 중요한 단계에 대한 폴백 동작 추가
+   - 실패 시 알림 전송
 
-3. **Handle rate limits**
-   - Respect external API rate limits
-   - Implement queuing if needed
-   - Add delays between requests
+3. **레이트 리미트 처리**
+   - 외부 API 레이트 리미트 준수
+   - 필요시 큐잉 구현
+   - 요청 간 지연 추가
 
-4. **Make integrations resilient**
-   - Handle network timeouts
-   - Validate API responses
-   - Provide meaningful error messages
+4. **복원력 있는 통합 만들기**
+   - 네트워크 타임아웃 처리
+   - API 응답 검증
+   - 의미 있는 오류 메시지 제공
 
-5. **Test all scenarios**
-   - Test each trigger type
-   - Test error scenarios (API down, timeout, invalid data)
-   - Test end-to-end workflow execution
+5. **모든 시나리오 테스트**
+   - 각 트리거 타입 테스트
+   - 오류 시나리오 테스트 (API 다운, 타임아웃, 잘못된 데이터)
+   - 엔드투엔드 워크플로우 실행 테스트
 
-#### Type-D (custom) Best Practices
+#### Type-D (custom) 모범 사례
 
-1. **Understand the request**
-   - Read carefully before responding
-   - Ask clarifying questions if ambiguous
-   - Confirm understanding if complex
+1. **요청 이해**
+   - 응답 전 신중히 읽기
+   - 모호한 경우 명확화 질문
+   - 복잡한 경우 이해 확인
 
-2. **Provide thorough answers**
-   - Explain concepts clearly
-   - Provide examples when helpful
-   - Include relevant context
+2. **철저한 답변 제공**
+   - 개념을 명확히 설명
+   - 도움이 될 때 예시 제공
+   - 관련 컨텍스트 포함
 
-3. **Generate quality code**
-   - Include comments for complex logic
-   - Handle edge cases
-   - Follow best practices
+3. **품질 높은 코드 생성**
+   - 복잡한 로직에 주석 포함
+   - 엣지 케이스 처리
+   - 모범 사례 준수
 
-4. **Be conversational**
-   - No need for formal deliverables
-   - Natural, helpful tone
-   - Offer to elaborate or clarify
+4. **대화형 되기**
+   - 공식 산출물 불필요
+   - 자연스럽고 도움이 되는 톤
+   - 상세 설명 또는 명확화 제안
 
-### For Users
+### 사용자를 위한
 
-#### When Creating create_app Tasks
+#### create_app 태스크 생성 시
 
-1. **Provide clear app description**
-   - What the app should do
-   - Who will use it
-   - Key features needed
+1. **명확한 앱 설명 제공**
+   - 앱이 수행해야 할 작업
+   - 사용할 사람
+   - 필요한 주요 기능
 
-2. **Specify tech stack preferences** (optional)
-   - Preferred frameworks
-   - Database preferences
-   - Deployment target
+2. **기술 스택 선호도 지정** (선택사항)
+   - 선호하는 프레임워크
+   - 데이터베이스 선호도
+   - 배포 대상
 
-3. **Define constraints**
-   - Budget constraints
-   - Time constraints
-   - Technical constraints
+3. **제약사항 정의**
+   - 예산 제약
+   - 시간 제약
+   - 기술적 제약
 
-#### When Creating modify_app Tasks
+#### modify_app 태스크 생성 시
 
-1. **Provide access to codebase**
-   - Share repository URL or code files
-   - Include any relevant documentation
-   - Explain current functionality
+1. **코드베이스에 대한 액세스 제공**
+   - 저장소 URL 또는 코드 파일 공유
+   - 관련 문서 포함
+   - 현재 기능 설명
 
-2. **Clearly describe desired changes**
-   - What to add/modify/remove
-   - Why the change is needed
-   - Expected behavior after change
+2. **원하는 변경사항 명확히 설명**
+   - 추가/수정/제거할 내용
+   - 변경이 필요한 이유
+   - 변경 후 예상 동작
 
-3. **Highlight critical areas**
-   - Features that must not break
-   - Performance requirements
-   - Security considerations
+3. **중요 영역 강조**
+   - 깨져서는 안 되는 기능
+   - 성능 요구사항
+   - 보안 고려사항
 
-#### When Creating workflow Tasks
+#### workflow 태스크 생성 시
 
-1. **Define the automation goal**
-   - What should be automated
-   - What triggers the workflow
-   - What's the expected outcome
+1. **자동화 목표 정의**
+   - 자동화해야 할 내용
+   - 워크플로우를 트리거하는 것
+   - 예상 결과
 
-2. **List integrations needed**
-   - Which external services
-   - Available API access
-   - Authentication methods
+2. **필요한 통합 나열**
+   - 어떤 외부 서비스
+   - 사용 가능한 API 액세스
+   - 인증 방법
 
-3. **Specify error handling needs**
-   - What happens on failure
-   - Who should be notified
-   - Retry requirements
+3. **오류 처리 요구사항 지정**
+   - 실패 시 발생하는 일
+   - 알림을 받을 사람
+   - 재시도 요구사항
 
-#### General Best Practices
+#### 일반 모범 사례
 
-1. **Respond to requests promptly**
-   - Dependency requests
-   - User questions
-   - Review feedback
+1. **요청에 신속히 응답**
+   - 의존성 요청
+   - 사용자 질문
+   - 리뷰 피드백
 
-2. **Review deliverables thoroughly**
-   - Check all documents
-   - Test code if provided
-   - Verify completeness
+2. **산출물 철저히 검토**
+   - 모든 문서 확인
+   - 제공된 경우 코드 테스트
+   - 완전성 확인
 
-3. **Provide actionable feedback**
-   - Be specific about what needs changing
-   - Explain why change is needed
-   - Provide examples if helpful
+3. **실행 가능한 피드백 제공**
+   - 변경이 필요한 사항에 대해 구체적으로
+   - 변경이 필요한 이유 설명
+   - 도움이 되는 경우 예시 제공
 
-4. **Monitor progress**
-   - Watch SSE stream for updates
-   - Check phase completion
-   - Review checkpoints if needed
+4. **진행 상황 모니터링**
+   - 업데이트를 위한 SSE 스트림 관찰
+   - 페이즈 완료 확인
+   - 필요시 체크포인트 검토
 
-### For Platform Operators
+### 플랫폼 운영자를 위한
 
-1. **Monitor token usage**
-   - Track usage per task
-   - Set budget alerts
-   - Optimize long-running tasks
+1. **토큰 사용량 모니터링**
+   - 태스크별 사용량 추적
+   - 예산 알림 설정
+   - 장기 실행 태스크 최적화
 
-2. **Handle rate limits gracefully**
-   - Pause agents when limit hit
-   - Resume after reset time
-   - Notify users of delays
+2. **레이트 리미트를 우아하게 처리**
+   - 제한 도달 시 에이전트 일시정지
+   - 재설정 시간 후 재개
+   - 지연에 대해 사용자에게 알림
 
-3. **Create checkpoints regularly**
-   - Every 10 minutes
-   - On phase completion
-   - Before risky operations
+3. **정기적으로 체크포인트 생성**
+   - 10분마다
+   - 페이즈 완료 시
+   - 위험한 작업 전
 
-4. **Log all events**
-   - Task creation/completion
-   - Phase transitions
-   - Errors and recoveries
-   - User interactions
+4. **모든 이벤트 로깅**
+   - 태스크 생성/완료
+   - 페이즈 전환
+   - 오류 및 복구
+   - 사용자 상호작용
 
-5. **Clean up resources**
-   - Terminate completed agent processes
-   - Archive old deliverables
-   - Clean up temp files
+5. **리소스 정리**
+   - 완료된 에이전트 프로세스 종료
+   - 이전 산출물 아카이브
+   - 임시 파일 정리
 
-6. **Archive deliverables**
-   - Save all documents
-   - Save code outputs
-   - Save logs for debugging
+6. **산출물 아카이브**
+   - 모든 문서 저장
+   - 코드 출력 저장
+   - 디버깅을 위한 로그 저장
 
 ---
 
-## Workflow Type Selection Guide
+## 워크플로우 타입 선택 가이드
 
-**How to choose the right workflow type for your task:**
+**태스크에 적합한 워크플로우 타입을 선택하는 방법:**
 
-### Decision Tree
+### 의사결정 트리
 
 ```
-Is it a coding task?
-├─ No → Type-D (custom)
-│         Examples: Q&A, explanations, research, comparisons
+코딩 태스크인가?
+├─ 아니오 → Type-D (custom)
+│         예시: Q&A, 설명, 연구, 비교
 │
-└─ Yes → Does existing code need modification?
-          ├─ Yes → Phase-B (modify_app)
-          │         Examples: "Add dark mode", "Fix bug in auth", "Update API"
+└─ 예 → 기존 코드 수정이 필요한가?
+          ├─ 예 → Phase-B (modify_app)
+          │         예시: "다크 모드 추가", "인증 버그 수정", "API 업데이트"
           │
-          └─ No → Is it automation/integration focused?
-                  ├─ Yes → Phase-C (workflow)
-                  │         Examples: "Send Slack on GitHub PR", "Daily DB backup"
+          └─ 아니오 → 자동화/통합에 초점을 맞추는가?
+                  ├─ 예 → Phase-C (workflow)
+                  │         예시: "GitHub PR 시 Slack 전송", "일일 DB 백업"
                   │
-                  └─ No → Phase-A (create_app)
-                            Examples: "Build todo app", "Create landing page"
+                  └─ 아니오 → Phase-A (create_app)
+                            예시: "todo 앱 만들기", "랜딩 페이지 생성"
 ```
 
-### Detailed Selection Criteria
+### 상세 선택 기준
 
-| Choose Phase-A (create_app) when: | Choose Phase-B (modify_app) when: |
+| Phase-A (create_app)를 선택하는 경우: | Phase-B (modify_app)를 선택하는 경우: |
 |-----------------------------------|-----------------------------------|
-| ✅ Creating new app from scratch | ✅ Modifying existing application |
-| ✅ Need full planning & design | ✅ Existing codebase provided |
-| ✅ Building complete application | ✅ Adding features to existing app |
-| ✅ Starting with blank slate | ✅ Fixing bugs in existing code |
-| ✅ Need comprehensive documentation | ✅ Refactoring existing code |
-| Example: "Build a blog platform" | Example: "Add search to my blog" |
+| ✅ 새 앱을 처음부터 생성 | ✅ 기존 애플리케이션 수정 |
+| ✅ 전체 기획 및 설계 필요 | ✅ 기존 코드베이스 제공됨 |
+| ✅ 완전한 애플리케이션 구축 | ✅ 기존 앱에 기능 추가 |
+| ✅ 빈 슬레이트로 시작 | ✅ 기존 코드의 버그 수정 |
+| ✅ 포괄적인 문서 필요 | ✅ 기존 코드 리팩토링 |
+| 예시: "블로그 플랫폼 만들기" | 예시: "내 블로그에 검색 추가" |
 
-| Choose Phase-C (workflow) when: | Choose Type-D (custom) when: |
+| Phase-C (workflow)를 선택하는 경우: | Type-D (custom)를 선택하는 경우: |
 |---------------------------------|------------------------------|
-| ✅ Creating automation | ✅ Q&A or explanation needed |
-| ✅ Integrating external services | ✅ Quick code snippet needed |
-| ✅ Trigger-based execution | ✅ Code review requested |
-| ✅ Scheduled tasks | ✅ Debugging help needed |
-| ✅ Event-driven processing | ✅ Research task |
-| Example: "Auto-deploy on push" | Example: "Explain async/await" |
+| ✅ 자동화 생성 | ✅ Q&A 또는 설명 필요 |
+| ✅ 외부 서비스 통합 | ✅ 빠른 코드 스니펫 필요 |
+| ✅ 트리거 기반 실행 | ✅ 코드 리뷰 요청 |
+| ✅ 예약된 태스크 | ✅ 디버깅 도움 필요 |
+| ✅ 이벤트 기반 처리 | ✅ 연구 태스크 |
+| 예시: "push 시 자동 배포" | 예시: "async/await 설명" |
 
-### Common Mistakes
+### 일반적인 실수
 
-❌ **DON'T use Phase-A for**:
-- Modifying existing apps (use Phase-B)
-- Simple automation (use Phase-C)
-- Q&A tasks (use Type-D)
+❌ **Phase-A를 사용하지 말아야 할 경우**:
+- 기존 앱 수정 (Phase-B 사용)
+- 간단한 자동화 (Phase-C 사용)
+- Q&A 태스크 (Type-D 사용)
 
-❌ **DON'T use Phase-B for**:
-- New apps (use Phase-A)
-- Workflow automation (use Phase-C)
-- Tasks without existing code (use Phase-A or Phase-C)
+❌ **Phase-B를 사용하지 말아야 할 경우**:
+- 새 앱 (Phase-A 사용)
+- 워크플로우 자동화 (Phase-C 사용)
+- 기존 코드가 없는 태스크 (Phase-A 또는 Phase-C 사용)
 
-❌ **DON'T use Phase-C for**:
-- Full applications (use Phase-A)
-- Modifying apps (use Phase-B)
-- Non-automation tasks (use Phase-A, Phase-B, or Type-D)
+❌ **Phase-C를 사용하지 말아야 할 경우**:
+- 전체 애플리케이션 (Phase-A 사용)
+- 앱 수정 (Phase-B 사용)
+- 자동화가 아닌 태스크 (Phase-A, Phase-B, 또는 Type-D 사용)
 
-❌ **DON'T use Type-D for**:
-- Tasks requiring structured deliverables (use Phase-A/B/C)
-- Complex coding projects (use Phase-A/B/C)
-- Tasks that benefit from review gates (use Phase-A/B/C)
+❌ **Type-D를 사용하지 말아야 할 경우**:
+- 구조화된 산출물이 필요한 태스크 (Phase-A/B/C 사용)
+- 복잡한 코딩 프로젝트 (Phase-A/B/C 사용)
+- 리뷰 게이트가 유익한 태스크 (Phase-A/B/C 사용)
 
-### Real-World Examples
+### 실제 예시
 
 **Phase-A (create_app)**:
-- "Build a todo app with React and Firebase"
-- "Create a REST API for a blog platform"
-- "Develop a landing page for a SaaS product"
-- "Build a CLI tool for file management"
-- "Create an e-commerce storefront"
+- "React와 Firebase로 todo 앱 만들기"
+- "블로그 플랫폼을 위한 REST API 생성"
+- "SaaS 제품을 위한 랜딩 페이지 개발"
+- "파일 관리를 위한 CLI 도구 만들기"
+- "전자상거래 스토어프론트 생성"
 
 **Phase-B (modify_app)**:
-- "Add dark mode to my existing React app"
-- "Fix authentication bug in login flow"
-- "Add pagination to the user list"
-- "Refactor API to use async/await"
-- "Update dependencies to latest versions"
-- "Add email notifications to existing app"
+- "기존 React 앱에 다크 모드 추가"
+- "로그인 흐름의 인증 버그 수정"
+- "사용자 목록에 페이지네이션 추가"
+- "async/await를 사용하도록 API 리팩토링"
+- "의존성을 최신 버전으로 업데이트"
+- "기존 앱에 이메일 알림 추가"
 
 **Phase-C (workflow)**:
-- "Send Slack notification when GitHub PR is merged"
-- "Daily backup of PostgreSQL database to S3"
-- "Auto-deploy to production on main branch push"
-- "Generate weekly analytics report and email it"
-- "Sync data between Stripe and internal database"
-- "Monitor website uptime and alert on downtime"
+- "GitHub PR이 병합되면 Slack 알림 전송"
+- "PostgreSQL 데이터베이스를 S3로 일일 백업"
+- "main 브랜치 push 시 프로덕션에 자동 배포"
+- "주간 분석 보고서 생성 및 이메일 전송"
+- "Stripe와 내부 데이터베이스 간 데이터 동기화"
+- "웹사이트 가동 시간 모니터링 및 다운타임 시 알림"
 
 **Type-D (custom)**:
-- "Explain how JWT authentication works"
-- "Write a regex to validate email addresses"
-- "Review this code for security vulnerabilities"
-- "Why am I getting this error message?"
-- "Compare REST vs GraphQL for my use case"
-- "What's the best state management for React?"
+- "JWT 인증이 어떻게 작동하는지 설명"
+- "이메일 주소를 검증하는 regex 작성"
+- "이 코드의 보안 취약점 검토"
+- "이 오류 메시지가 왜 발생하나요?"
+- "내 사용 사례에 대해 REST vs GraphQL 비교"
+- "React를 위한 최고의 상태 관리는 무엇인가요?"
 
 ---
 
-## Reference Documents
+## 참조 문서
 
-- **Project Overview**: `../README.md`
-- **Architecture**: `ARCHITECTURE.md`
-- **API Reference**: `API.md`
-- **Development Guide**: `DEVELOPMENT.md`
-- **Planning Guides**: `/guide/planning/*.md` (for Phase-A)
-- **Design Guides**: `/guide/design/*.md` (for Phase-A)
-- **Development Guides**: `/guide/development/*.md` (for Phase-A)
-- **Verification Guides**: `/guide/verification/*.md` (for Phase-A, adapt for Phase-B/C)
+- **프로젝트 개요**: `../README.md`
+- **아키텍처**: `ARCHITECTURE.md`
+- **API 참조**: `API.md`
+- **개발 가이드**: `DEVELOPMENT.md`
+- **기획 가이드**: `/guide/planning/*.md` (Phase-A용)
+- **설계 가이드**: `/guide/design/*.md` (Phase-A용)
+- **개발 가이드**: `/guide/development/*.md` (Phase-A용)
+- **검증 가이드**: `/guide/verification/*.md` (Phase-A용, Phase-B/C에 적용)
 
 ---
 
-## Summary
+## 요약
 
-**Key Takeaways**:
+**핵심 내용**:
 
-1. **Four distinct workflows** - Each with completely different phases and requirements
-2. **Phase-A (create_app)**: Most comprehensive - 14 docs + codebase, uses all 24 guides
-3. **Phase-B (modify_app)**: Focused on modification - 2 docs + modified code, no guides
-4. **Phase-C (workflow)**: Automation-focused - 2 docs + workflow code, adapted guides
-5. **Type-D (custom)**: No structure - conversational, no deliverables, no guides
-6. **Review gates** for Phase-A/B/C after each phase, none for Type-D
-7. **Verification** is workflow-specific with different criteria for each type
-8. **Sub-agents must identify task type** and follow the correct workflow
+1. **네 가지 고유한 워크플로우** - 각각 완전히 다른 페이즈 및 요구사항
+2. **Phase-A (create_app)**: 가장 포괄적 - 14개 문서 + 코드베이스, 모든 24개 가이드 사용
+3. **Phase-B (modify_app)**: 수정에 초점 - 2개 문서 + 수정된 코드, 가이드 없음
+4. **Phase-C (workflow)**: 자동화에 초점 - 2개 문서 + 워크플로우 코드, 적용된 가이드
+5. **Type-D (custom)**: 구조 없음 - 대화형, 산출물 없음, 가이드 없음
+6. **리뷰 게이트**는 Phase-A/B/C에서 각 페이즈 후, Type-D에는 없음
+7. **검증**은 워크플로우별로 각 타입에 대해 다른 기준 적용
+8. **서브 에이전트는 태스크 타입을 식별**하고 올바른 워크플로우를 따라야 함
 
-**For Sub-Agents**: Always check the task type and follow the corresponding workflow exactly. Don't mix workflows!
+**서브 에이전트를 위한**: 항상 태스크 타입을 확인하고 해당 워크플로우를 정확히 따르세요. 워크플로우를 혼합하지 마세요!
 
-**For Users**: Choose the right workflow type for your task to get the best results.
+**사용자를 위한**: 최상의 결과를 얻기 위해 태스크에 적합한 워크플로우 타입을 선택하세요.

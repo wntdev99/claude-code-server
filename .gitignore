@@ -54,3 +54,7 @@ prisma/migrations/
 # OS
 Thumbs.db
 .DS_Store
+
+# Archive directory
+.archive/
+.archive/

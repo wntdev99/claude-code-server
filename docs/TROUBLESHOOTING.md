@@ -155,23 +155,75 @@ ls -ld /projects/{task-id}/docs/planning/
 chmod 755 /projects/{task-id}/docs/planning/
 ```
 
-**3. Agent가 무한 루프**
+**3. Agent가 무한 루프 또는 응답 없음 (Hang)**
+
+**타임아웃 정책** (Phase별):
+
+| Phase | 타임아웃 | 설명 |
+|-------|---------|------|
+| **Phase 1 (Planning)** | 45분 | 9개 기획 문서 생성 |
+| **Phase 2 (Design)** | 60분 | 5개 설계 문서 생성 |
+| **Phase 3 (Development)** | 120분 | 코드 작성 및 테스트 |
+| **Phase 4 (Testing)** | 30분 | 검증 및 테스트 실행 |
+| **Type-D (Custom)** | 20분 | 단일 질문/답변 |
+
+**감지 메커니즘**:
 
 ```typescript
-// Agent Manager에서 타임아웃 설정
-const PHASE_TIMEOUT = 30 * 60 * 1000; // 30분
+// Agent Manager에서 Phase별 타임아웃 설정
+const PHASE_TIMEOUTS = {
+  1: 45 * 60 * 1000,  // 45분
+  2: 60 * 60 * 1000,  // 60분
+  3: 120 * 60 * 1000, // 120분
+  4: 30 * 60 * 1000,  // 30분
+  custom: 20 * 60 * 1000, // 20분
+};
 
-setTimeout(() => {
-  if (agent.currentPhase === phase && !agent.phaseCompleted) {
-    console.error(`Phase ${phase} timeout`);
-    pauseAgent(taskId);
-    notifyUser({
-      type: 'warning',
-      message: `Phase ${phase} is taking longer than expected. Please check logs.`,
-    });
-  }
-}, PHASE_TIMEOUT);
+function startPhaseTimeout(taskId: string, phase: number) {
+  const timeout = PHASE_TIMEOUTS[phase] || PHASE_TIMEOUTS[1];
+
+  const timerId = setTimeout(async () => {
+    const agent = await getAgent(taskId);
+
+    if (agent.currentPhase === phase && !agent.phaseCompleted) {
+      console.error(`⏱️ Phase ${phase} timeout (${timeout / 60000} minutes)`);
+
+      // 1. Create checkpoint
+      await createCheckpoint(taskId, 'phase_timeout');
+
+      // 2. Pause agent
+      await pauseAgent(taskId);
+
+      // 3. Notify user
+      await notifyUser({
+        type: 'warning',
+        message: `Phase ${phase} is taking longer than expected (>${timeout / 60000} min). Agent paused. Please review logs.`,
+        action: 'review_logs',
+        taskId,
+      });
+
+      // 4. Log details
+      await logPhaseTimeout(taskId, phase, timeout);
+    }
+  }, timeout);
+
+  // Store timer ID for cleanup
+  agentTimers.set(taskId, timerId);
+}
 ```
+
+**복구 절차**:
+
+1. **로그 확인**: `tail -f /projects/{task-id}/.logs/agent.log`
+2. **문제 진단**:
+   - Agent가 멈춘 지점 확인
+   - 마지막 출력 메시지 확인
+   - 에러 메시지 있는지 검토
+3. **수동 개입**:
+   - 사용자가 로그를 검토하고 결정
+   - 옵션 1: Agent 재개 (계속 실행)
+   - 옵션 2: Agent 재시작 (최근 checkpoint부터)
+   - 옵션 3: Task 취소 (작업 중단)
 
 **4. Phase 완료 신호 누락**
 
@@ -180,6 +232,59 @@ Sub-Agent가 `=== PHASE N COMPLETE ===`를 출력하지 않음
 가이드 문서 확인:
 - `/guide/[phase]/` 문서에서 완료 신호 출력 지시 확인
 - Phase completion protocol 명시 확인
+
+**5. Agent가 비정상 종료 (Phase 완료 신호 없이)**
+
+**증상**:
+```
+Agent 실행 중 → 갑자기 프로세스 종료
+Phase N 진행 중이었으나 "=== PHASE N COMPLETE ===" 출력 없음
+Task 상태가 "in_progress"에서 멈춤
+```
+
+**처리 규칙**:
+
+```typescript
+// Agent Manager에서 exit 이벤트 처리
+agentProcess.on('exit', async (code, signal) => {
+  const agent = await getAgent(taskId);
+
+  if (!agent.phaseCompleted) {
+    console.error(`⚠️ Agent exited without completing phase ${agent.currentPhase}`);
+
+    // 1. Create partial checkpoint
+    await createCheckpoint(taskId, 'incomplete_exit', {
+      phase: agent.currentPhase,
+      exitCode: code,
+      signal,
+      lastOutput: agent.lastOutput,
+    });
+
+    // 2. Mark as incomplete
+    await updateTaskStatus(taskId, 'failed', {
+      reason: 'agent_incomplete_exit',
+      phase: agent.currentPhase,
+      exitCode: code,
+    });
+
+    // 3. Notify user with recovery options
+    await notifyUser({
+      type: 'error',
+      message: `Agent exited unexpectedly during Phase ${agent.currentPhase}. Checkpoint saved.`,
+      actions: [
+        { label: 'Resume from Checkpoint', action: 'resume' },
+        { label: 'Restart Phase', action: 'restart_phase' },
+        { label: 'Review Logs', action: 'view_logs' },
+      ],
+    });
+  }
+});
+```
+
+**복구 옵션**:
+1. **Resume from Checkpoint**: 마지막 checkpoint부터 재개
+2. **Restart Phase**: 현재 Phase를 처음부터 다시 시작
+3. **Manual Intervention**: 로그를 검토하고 수동 수정 후 재개
 
 ---
 

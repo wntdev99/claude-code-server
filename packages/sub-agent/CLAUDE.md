@@ -109,7 +109,7 @@ docs/
 
 | 필요한 것 | 읽을 문서 |
 |----------|----------|
-| 의존성 요청 | `docs/protocols/dependency-request.md` |
+| Optional Integrations 활용 | 이 문서의 "🔌 Optional Integrations" 섹션 |
 | 사용자 질문 | `docs/protocols/user-question.md` |
 | 문서 작성 규칙 | `docs/deliverables/documents.md` |
 | 코드 작성 규칙 | `docs/deliverables/code.md` |
@@ -179,17 +179,6 @@ docs/
 
 ## 🗣️ 프로토콜 사용
 
-### 의존성 요청
-```
-[DEPENDENCY_REQUEST]
-type: api_key
-name: OPENAI_API_KEY
-description: Required for AI features
-required: true
-[/DEPENDENCY_REQUEST]
-```
-→ `docs/protocols/dependency-request.md` 참조
-
 ### 사용자 질문
 ```
 [USER_QUESTION]
@@ -255,6 +244,74 @@ Documents created:
 
 → `docs/verification/phase3-development.md` 참조
 
+## 🔌 Optional Integrations 활용
+
+플랫폼에 설정된 Optional Integrations를 조회하고 활용할 수 있습니다.
+
+### Settings 조회 방법
+
+**Phase 3 (Development) 시작 시**:
+1. 플랫폼 Settings를 조회 (읽기 전용)
+2. Optional integration이 설정되어 있는지 확인
+3. 있으면 해당 기능 사용, 없으면 graceful degradation
+
+### GitHub Integration
+
+```
+Settings 조회 → github_token 있음:
+  ✅ GitHub repository 자동 생성
+  ✅ 코드 자동 push
+  ✅ README에 repo URL 추가
+
+Settings 조회 → github_token 없음:
+  ✅ 로컬에만 프로젝트 저장
+  ✅ README에 "수동으로 GitHub 업로드" 안내 추가:
+     ```bash
+     # GitHub에 업로드하기
+     git init
+     git add .
+     git commit -m "Initial commit"
+     git remote add origin [your-repo-url]
+     git push -u origin main
+     ```
+```
+
+### Supabase Integration
+
+```
+Settings 조회 → supabase_url, supabase_key 있음:
+  ✅ Supabase 프로젝트에 DB 스키마 자동 생성
+  ✅ README에 "Supabase 연결됨" 안내
+
+Settings 조회 → supabase credentials 없음:
+  ✅ README에 Supabase 수동 설정 안내:
+     1. Supabase 프로젝트 생성
+     2. Database → SQL Editor에서 schema.sql 실행
+     3. .env에 SUPABASE_URL, SUPABASE_KEY 추가
+```
+
+### Vercel Deployment
+
+```
+Settings 조회 → vercel_token 있음:
+  ✅ Vercel에 자동 배포
+  ✅ README에 배포 URL 추가
+
+Settings 조회 → vercel_token 없음:
+  ✅ README에 수동 배포 안내:
+     ```bash
+     npm install -g vercel
+     vercel login
+     vercel
+     ```
+```
+
+### 중요 원칙
+
+1. **절대 요청하지 않음**: Settings에 없어도 작업을 중단하거나 요청하지 않음
+2. **Graceful degradation**: 기능이 없으면 문서화만 제공
+3. **사용자 경험 최우선**: README에 명확한 수동 방법 제공
+
 ## 🤔 자율 실행 가이드라인
 
 ### 스스로 결정하세요
@@ -286,7 +343,6 @@ Documents created:
 
 ### Protocols (프로토콜)
 - `docs/protocols/README.md` - 프로토콜 개요
-- `docs/protocols/dependency-request.md` - 의존성 요청
 - `docs/protocols/user-question.md` - 사용자 질문
 - `docs/protocols/phase-completion.md` - Phase 완료
 - `docs/protocols/error-reporting.md` - 에러 보고
@@ -340,8 +396,9 @@ Documents created:
 ### "무엇을 해야 할지 모르겠어요"
 → `docs/workflows/[작업타입].md` 읽기
 
-### "의존성이 필요해요"
-→ `docs/protocols/dependency-request.md` 사용
+### "GitHub/Supabase 연동은 어떻게 하나요?"
+→ 이 문서의 "🔌 Optional Integrations 활용" 섹션 참조
+→ Settings에 있으면 자동 사용, 없으면 README에 수동 방법 문서화
 
 ### "사용자에게 질문해야 해요"
 → `docs/protocols/user-question.md` 사용

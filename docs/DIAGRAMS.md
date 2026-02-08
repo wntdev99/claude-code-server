@@ -2,6 +2,21 @@
 
 이 문서는 Claude Code Server의 주요 워크플로우를 시각적으로 표현합니다.
 
+## 포함된 다이어그램 (12개)
+
+1. **Task 실행 전체 흐름** - 작업 생성부터 완료까지의 전체 프로세스
+2. **Review Gate 프로세스** - Phase 완료 후 검증 및 리뷰 절차
+3. **Settings 시스템** - 설정 사전 구성 및 환경 변수 주입 (✨ NEW)
+4. **Checkpoint 생성 및 복구** - 상태 저장 및 복원 메커니즘
+5. **Rate Limit 처리** - API 사용량 제한 감지 및 자동 재개
+6. **3-Tier 아키텍처** - 시스템 계층 구조 및 컴포넌트
+7. **Task 상태 전이** - 작업의 생명주기 상태 변화
+8. **Agent 상태 전이** - 에이전트의 실행 상태 변화
+9. **사용자 질문 처리** - 에이전트의 질문 및 응답 흐름
+10. **검증 프로세스** - 산출물 품질 검사 절차
+11. **시스템 부트스트랩** - 재시작 시 복구 프로세스
+12. **SSE 스트리밍** - 실시간 로그 스트리밍
+
 ---
 
 ## 1. Task 실행 전체 흐름
@@ -81,36 +96,51 @@ flowchart TD
 
 ---
 
-## 3. 의존성 요청 흐름
+## 3. Settings 시스템 (설정 사전 구성)
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Sub-Agent
-    participant Manager as Agent Manager
-    participant Server as Web Server
+    participant User as Platform Operator
     participant UI as Web UI
-    participant User
+    participant Server as Web Server
+    participant DB as Database
+    participant Manager as Agent Manager
+    participant Agent as Sub-Agent
 
-    Agent->>Manager: [DEPENDENCY_REQUEST]<br/>type: api_key<br/>name: OPENAI_API_KEY
-    Manager->>Manager: Parse Protocol
-    Manager->>Manager: Pause Agent (SIGTSTP)
-    Manager->>Manager: Create Checkpoint
-    Manager->>Server: Dependency Event
-    Server->>UI: SSE: dependency_requested
-    UI->>User: Show Input Form
-    User->>UI: Enter API Key
-    UI->>Server: POST /api/dependencies/{id}/provide
-    Server->>Server: Encrypt Value
-    Server->>Server: Save to DB
-    Server->>Manager: Provide Dependency
-    Manager->>Manager: Terminate Agent Process
-    Manager->>Manager: Load Checkpoint
-    Manager->>Manager: Create New Agent<br/>(with env var)
-    Manager->>Manager: Restore Conversation
-    Manager->>Agent: Resume (new process)
-    Note over Agent: process.env.OPENAI_API_KEY<br/>now available
-    Agent->>Manager: Continue Execution
+    User->>UI: Configure Settings
+    UI->>UI: Open Settings Page
+    User->>UI: Enter Optional Integrations<br/>(github_token, vercel_token, etc.)
+    UI->>Server: PATCH /api/settings
+    Server->>Server: Encrypt Sensitive Values
+    Server->>DB: Save Settings
+    DB-->>Server: Settings Saved
+    Server-->>UI: Success
+    UI-->>User: Settings Updated ✅
+
+    Note over User,Agent: Later: Task Execution
+
+    User->>UI: Create Task
+    UI->>Server: POST /api/tasks
+    Server->>DB: Fetch Settings
+    DB-->>Server: Return Settings
+    Server->>Manager: Spawn Agent with Settings
+    Manager->>Manager: Decrypt Settings
+    Manager->>Agent: Create Process<br/>(env vars injected)
+    Note over Agent: process.env.GITHUB_TOKEN<br/>process.env.VERCEL_TOKEN<br/>already available
+    Agent->>Agent: Read Settings via env vars
+
+    alt GitHub Token Configured
+        Agent->>Agent: Create GitHub Repo
+        Agent->>Agent: Push Code
+    else No GitHub Token
+        Agent->>Agent: Skip GitHub Integration
+        Agent->>Agent: Add Manual Instructions to README
+    end
+
+    Note over Agent: Graceful degradation<br/>작업은 계속 진행
 ```
+
+> **⚠️ 참고**: 이전에 사용되던 DEPENDENCY_REQUEST 프로토콜은 deprecated되었습니다. 현재는 Settings 시스템을 통해 사전에 설정을 구성합니다. 자세한 내용은 [SETTINGS_SYSTEM.md](SETTINGS_SYSTEM.md)와 [DEPENDENCY_SYSTEM.md](DEPENDENCY_SYSTEM.md) (deprecated) 참조.
 
 ---
 
@@ -454,5 +484,5 @@ mmdc -i docs/DIAGRAMS.md -o docs/diagrams.png
 
 ---
 
-**최종 업데이트**: 2024-02-15
-**버전**: 1.0
+**최종 업데이트**: 2025-02-07
+**버전**: 2.0 (Settings 시스템 다이어그램 추가, Deprecated 시스템 제거)

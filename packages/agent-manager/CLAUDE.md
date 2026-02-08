@@ -49,7 +49,6 @@ docs/
 |------------|----------|
 | 에이전트 생성 | `docs/lifecycle/creation.md` |
 | 에이전트 제어 | `docs/lifecycle/execution.md` |
-| 의존성 처리 | `docs/protocols/dependency.md` |
 | 질문 처리 | `docs/protocols/question.md` |
 | Phase 완료 처리 | `docs/protocols/phase-completion.md` |
 | 토큰 추적 | `docs/monitoring/token-management.md` |
@@ -75,28 +74,6 @@ docs/
 
 5. 프로토콜 감지 및 처리
    → docs/protocols/[해당프로토콜].md
-```
-
-### 의존성 요청 처리
-
-```
-1. 의존성 요청 감지
-   → docs/protocols/dependency.md
-
-2. 에이전트 일시 중지
-   → docs/lifecycle/execution.md (pause)
-
-3. Checkpoint 생성
-   → docs/checkpoint/creation.md
-
-4. 웹 서버에 알림
-   → 사용자에게 의존성 요청
-
-5. 의존성 제공 받음
-   → 환경변수 주입
-
-6. 에이전트 재개
-   → docs/lifecycle/execution.md (resume)
 ```
 
 ### Phase 완료 처리
@@ -184,13 +161,10 @@ idle → running → waiting_review → running → completed
 2. PHASE_COMPLETE
    → Phase 종료 처리
 
-3. DEPENDENCY_REQUEST
+3. USER_QUESTION
    → 실행 차단
 
-4. USER_QUESTION
-   → 실행 차단
-
-5. 일반 로그
+4. 일반 로그
    → 기록만
 ```
 
@@ -210,14 +184,13 @@ idle → running → waiting_review → running → completed
 
 - Task 생성 알림
 - 실행/일시중지/재개/취소 명령
-- 의존성 제공
 - 질문 응답
 - 리뷰 승인/거부
 
 ### 에이전트 관리자 → 웹 서버
 
 - 상태 업데이트
-- 프로토콜 이벤트 (의존성 요청, 질문 등)
+- 프로토콜 이벤트 (질문 등)
 - Phase 완료 알림
 - 에러 알림
 
@@ -244,7 +217,6 @@ idle → running → waiting_review → running → completed
 
 ### Protocols (프로토콜)
 - `docs/protocols/README.md` - 프로토콜 개요
-- `docs/protocols/dependency.md` - 의존성 요청
 - `docs/protocols/question.md` - 사용자 질문
 - `docs/protocols/phase-completion.md` - Phase 완료
 - `docs/protocols/error.md` - 에러 처리
@@ -252,7 +224,6 @@ idle → running → waiting_review → running → completed
 ### Queue (대기열)
 - `docs/queue/README.md` - 대기열 개요
 - `docs/queue/priority.md` - 우선순위 관리
-- `docs/queue/dependency.md` - 의존성 스케줄링
 
 ### Checkpoint (체크포인트)
 - `docs/checkpoint/README.md` - Checkpoint 개요
