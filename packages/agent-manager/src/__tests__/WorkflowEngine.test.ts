@@ -149,4 +149,58 @@ describe('WorkflowEngine', () => {
       expect(engine.calculateProgress('custom', 1)).toBe(100);
     });
   });
+
+  describe('modify_app workflow', () => {
+    it('builds modify_app Phase 1 prompt with Analysis context', () => {
+      const phaseDef = getPhaseDefinition('modify_app', 1);
+      const ctx = {
+        taskId: 't-mod-1',
+        taskType: 'modify_app',
+        title: 'Add dark mode',
+        description: 'Add dark mode to existing app',
+        workspace: '/tmp/ws',
+        guideRoot: tmpDir,
+      };
+      const prompt = engine.buildPhasePrompt(ctx, phaseDef);
+      expect(prompt).toContain('Type: modify_app');
+      expect(prompt).toContain('Phase 1');
+      expect(prompt).toContain('Add dark mode');
+    });
+
+    it('getNextAction returns review for modify_app between phases', () => {
+      expect(engine.getNextAction('modify_app', 1)).toBe('review');
+      expect(engine.getNextAction('modify_app', 3)).toBe('review');
+    });
+
+    it('getNextAction returns complete for modify_app last phase', () => {
+      expect(engine.getNextAction('modify_app', 4)).toBe('complete');
+    });
+
+    it('calculateProgress for modify_app phases', () => {
+      expect(engine.calculateProgress('modify_app', 2)).toBe(50);
+      expect(engine.calculateProgress('modify_app', 4)).toBe(100);
+    });
+  });
+
+  describe('workflow type', () => {
+    it('builds workflow Phase 1 prompt', () => {
+      const phaseDef = getPhaseDefinition('workflow', 1);
+      const ctx = {
+        taskId: 't-wf-1',
+        taskType: 'workflow',
+        title: 'Slack Bot',
+        description: 'Create notification workflow',
+        workspace: '/tmp/ws',
+        guideRoot: tmpDir,
+      };
+      const prompt = engine.buildPhasePrompt(ctx, phaseDef);
+      expect(prompt).toContain('Type: workflow');
+      expect(prompt).toContain('Slack Bot');
+    });
+
+    it('calculateProgress for workflow phases', () => {
+      expect(engine.calculateProgress('workflow', 1)).toBe(25);
+      expect(engine.calculateProgress('workflow', 3)).toBe(75);
+    });
+  });
 });

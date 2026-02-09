@@ -152,4 +152,51 @@ describe('RateLimitDetector', () => {
       expect(resumed).not.toHaveBeenCalled();
     });
   });
+
+  describe('full detect → handle → resume cycle', () => {
+    it('detects rate limit, handles pause, and auto-resumes', async () => {
+      const shortDetector = new RateLimitDetector(1000); // 1s cooldown
+      const paused = vi.fn();
+      const resumed = vi.fn();
+      const detectedEvents: unknown[] = [];
+      const resumedEvents: unknown[] = [];
+      shortDetector.on('rate_limit:detected', (e) => detectedEvents.push(e));
+      shortDetector.on('rate_limit:resumed', (e) => resumedEvents.push(e));
+
+      // Step 1: Detect rate limit
+      const detection = shortDetector.detect('Error: rate_limit_error - Too many requests');
+      expect(detection).toBeTruthy();
+      expect(detection!.detected).toBe(true);
+
+      // Step 2: Handle (pause + schedule resume)
+      const delay = shortDetector.handle('task-1', detection!, paused, resumed);
+      expect(paused).toHaveBeenCalledOnce();
+      expect(detectedEvents).toHaveLength(1);
+
+      // Step 3: Wait for auto-resume
+      await new Promise((r) => setTimeout(r, delay + 500));
+      expect(resumed).toHaveBeenCalledOnce();
+      expect(resumedEvents).toHaveLength(1);
+
+      shortDetector.cancelAll();
+    }, 10000);
+
+    it('handles multiple tasks independently', () => {
+      const paused1 = vi.fn();
+      const resumed1 = vi.fn();
+      const paused2 = vi.fn();
+      const resumed2 = vi.fn();
+      const info = { detected: true, resetAt: null };
+
+      detector.handle('task-1', info, paused1, resumed1);
+      detector.handle('task-2', info, paused2, resumed2);
+
+      expect(paused1).toHaveBeenCalledOnce();
+      expect(paused2).toHaveBeenCalledOnce();
+
+      // Cancel only task-1
+      detector.cancelResume('task-1');
+      // task-2 timer should still be active (we can't easily assert this without waiting)
+    });
+  });
 });

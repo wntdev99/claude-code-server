@@ -109,4 +109,67 @@ describe('CheckpointManager', () => {
       manager.stopAll();
     });
   });
+
+  describe('loadFromFilesystem edge cases', () => {
+    it('handles corrupt JSON checkpoint files gracefully', async () => {
+      const checkpointDir = path.join(tmpDir, '.checkpoints');
+      fs.mkdirSync(checkpointDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(checkpointDir, 'checkpoint_manual_9999999999999.json'),
+        'NOT VALID JSON {'
+      );
+
+      const loaded = manager.loadFromFilesystem(tmpDir);
+      // Should return null or skip the corrupt file without crashing
+      expect(loaded).toBeNull();
+    });
+
+    it('skips corrupt files and loads valid ones', async () => {
+      const checkpointDir = path.join(tmpDir, '.checkpoints');
+      fs.mkdirSync(checkpointDir, { recursive: true });
+
+      // Write a corrupt file with an earlier timestamp
+      fs.writeFileSync(
+        path.join(checkpointDir, 'checkpoint_manual_1000000000000.json'),
+        'corrupt data'
+      );
+
+      // Write a valid checkpoint with a later timestamp
+      await manager.create('task-1', 'manual', { progress: 80 }, tmpDir);
+
+      const loaded = manager.loadFromFilesystem(tmpDir);
+      expect(loaded).toBeTruthy();
+      expect(loaded!.state.progress).toBe(80);
+    });
+  });
+
+  describe('checkpoint reasons', () => {
+    it('creates phase_complete checkpoint', async () => {
+      const checkpoint = await manager.create('task-1', 'phase_complete', {
+        currentPhase: 1,
+        progress: 100,
+      });
+      expect(checkpoint.reason).toBe('phase_complete');
+      expect(checkpoint.state.currentPhase).toBe(1);
+      expect(checkpoint.state.progress).toBe(100);
+    });
+
+    it('creates error checkpoint', async () => {
+      const checkpoint = await manager.create('task-1', 'error', {
+        currentPhase: 2,
+        progress: 30,
+        lastOutput: 'Fatal error occurred',
+      });
+      expect(checkpoint.reason).toBe('error');
+      expect(checkpoint.state.lastOutput).toBe('Fatal error occurred');
+    });
+
+    it('creates rate_limit checkpoint', async () => {
+      const checkpoint = await manager.create('task-1', 'rate_limit', {
+        currentPhase: 3,
+        progress: 60,
+      });
+      expect(checkpoint.reason).toBe('rate_limit');
+    });
+  });
 });

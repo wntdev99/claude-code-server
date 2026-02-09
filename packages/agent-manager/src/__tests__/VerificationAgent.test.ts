@@ -170,4 +170,72 @@ describe('VerificationAgent', () => {
       expect(verifier.shouldAutoRework(result)).toBe(false);
     });
   });
+
+  describe('auto-rework cycle', () => {
+    it('simulates fail → rework → pass cycle', () => {
+      const phaseDef = makePhaseDef({ expectedDeliverables: 1 });
+
+      // Attempt 1: fails because content is too short
+      const attempt1 = verifier.verify([makeDeliverable({ content: 'Short' })], phaseDef, 1);
+      expect(attempt1.passed).toBe(false);
+      expect(attempt1.attempts).toBe(1);
+      expect(verifier.shouldAutoRework(attempt1)).toBe(true);
+
+      // Generate feedback for rework
+      const feedback = verifier.generateFeedback(attempt1);
+      expect(feedback).toContain('Verification failed');
+
+      // Attempt 2: passes with proper content
+      const attempt2 = verifier.verify([makeDeliverable()], phaseDef, 2);
+      expect(attempt2.passed).toBe(true);
+      expect(attempt2.attempts).toBe(2);
+      expect(verifier.shouldAutoRework(attempt2)).toBe(false);
+    });
+
+    it('exhausts max rework attempts', () => {
+      const phaseDef = makePhaseDef({ expectedDeliverables: 1 });
+
+      // Attempts 1 through 3 all fail
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const result = verifier.verify([makeDeliverable({ content: 'Short' })], phaseDef, attempt);
+        expect(result.passed).toBe(false);
+        expect(result.attempts).toBe(attempt);
+        if (attempt < 3) {
+          expect(verifier.shouldAutoRework(result)).toBe(true);
+        } else {
+          expect(verifier.shouldAutoRework(result)).toBe(false);
+        }
+      }
+    });
+  });
+
+  describe('multiple issue types', () => {
+    it('reports both count_mismatch and too_short in same verification', () => {
+      // Only 1 deliverable (expect 9) and it's too short
+      const phaseDef = makePhaseDef({ expectedDeliverables: 9 });
+      const result = verifier.verify([makeDeliverable({ content: 'Short' })], phaseDef);
+      expect(result.passed).toBe(false);
+      expect(result.issues.some((i) => i.type === 'count_mismatch')).toBe(true);
+      expect(result.issues.some((i) => i.type === 'too_short')).toBe(true);
+    });
+
+    it('reports both too_short and placeholder_content in same verification', () => {
+      const phaseDef = makePhaseDef({ expectedDeliverables: 1 });
+      const result = verifier.verify(
+        [makeDeliverable({ content: 'x [TODO] placeholder' })],
+        phaseDef
+      );
+      expect(result.passed).toBe(false);
+      expect(result.issues.some((i) => i.type === 'too_short')).toBe(true);
+      expect(result.issues.some((i) => i.type === 'placeholder_content')).toBe(true);
+    });
+
+    it('generates feedback listing all issue types', () => {
+      const phaseDef = makePhaseDef({ expectedDeliverables: 9 });
+      const result = verifier.verify([makeDeliverable({ content: 'Short' })], phaseDef);
+      const feedback = verifier.generateFeedback(result);
+      expect(feedback).toContain('count_mismatch');
+      expect(feedback).toContain('too_short');
+    });
+  });
 });

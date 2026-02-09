@@ -68,4 +68,65 @@ describe('DeliverableCollector', () => {
     expect(result).toHaveLength(1);
     expect(result[0].path).toBe('src/index.ts');
   });
+
+  describe('phase-specific directory mapping', () => {
+    it('collects planning deliverables from docs/planning', () => {
+      const planningDir = path.join(tmpDir, 'docs', 'planning');
+      fs.mkdirSync(planningDir, { recursive: true });
+      fs.writeFileSync(path.join(planningDir, '01_idea.md'), 'Idea content');
+      fs.writeFileSync(path.join(planningDir, '02_market.md'), 'Market content');
+      fs.writeFileSync(path.join(planningDir, '03_persona.md'), 'Persona content');
+
+      const result = collector.collect(tmpDir, 'docs/planning');
+      expect(result).toHaveLength(3);
+      expect(result.map((d) => d.path).sort()).toEqual([
+        'docs/planning/01_idea.md',
+        'docs/planning/02_market.md',
+        'docs/planning/03_persona.md',
+      ]);
+    });
+
+    it('collects design deliverables from docs/design', () => {
+      const designDir = path.join(tmpDir, 'docs', 'design');
+      fs.mkdirSync(designDir, { recursive: true });
+      fs.writeFileSync(path.join(designDir, '01_screen.md'), 'Screen flow');
+      fs.writeFileSync(path.join(designDir, '02_data_model.md'), 'Data model');
+
+      const result = collector.collect(tmpDir, 'docs/design');
+      expect(result).toHaveLength(2);
+      expect(result.map((d) => d.path).sort()).toEqual([
+        'docs/design/01_screen.md',
+        'docs/design/02_data_model.md',
+      ]);
+    });
+
+    it('collects development deliverables from src', () => {
+      const srcDir = path.join(tmpDir, 'src');
+      const libDir = path.join(srcDir, 'lib');
+      fs.mkdirSync(libDir, { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'index.ts'), 'export {}');
+      fs.writeFileSync(path.join(srcDir, 'app.tsx'), '<App />');
+      fs.writeFileSync(path.join(libDir, 'utils.ts'), 'export function foo() {}');
+
+      const result = collector.collect(tmpDir, 'src');
+      expect(result).toHaveLength(3);
+      const paths = result.map((d) => d.path);
+      expect(paths).toContain('src/index.ts');
+      expect(paths).toContain('src/app.tsx');
+      expect(paths).toContain('src/lib/utils.ts');
+    });
+
+    it('returns correct content and size for each deliverable', () => {
+      const docsDir = path.join(tmpDir, 'docs', 'planning');
+      fs.mkdirSync(docsDir, { recursive: true });
+      const content = 'This is a detailed planning document.';
+      fs.writeFileSync(path.join(docsDir, '01_idea.md'), content);
+
+      const result = collector.collect(tmpDir, 'docs/planning');
+      expect(result).toHaveLength(1);
+      expect(result[0].content).toBe(content);
+      expect(result[0].size).toBe(Buffer.byteLength(content));
+      expect(result[0].path).toBe('docs/planning/01_idea.md');
+    });
+  });
 });
