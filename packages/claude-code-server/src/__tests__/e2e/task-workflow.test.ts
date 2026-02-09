@@ -16,20 +16,17 @@ const prisma = new PrismaClient({
   datasources: { db: { url: `file:${dbPath}` } },
 });
 
-beforeAll(async () => {
-  await prisma.log.deleteMany();
-  await prisma.checkpoint.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.task.deleteMany();
-});
+// Track task IDs created by this test file for cleanup
+const createdTaskIds: string[] = [];
 
 afterAll(async () => {
-  await prisma.log.deleteMany();
-  await prisma.checkpoint.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.task.deleteMany();
+  for (const id of createdTaskIds) {
+    await prisma.log.deleteMany({ where: { taskId: id } });
+    await prisma.checkpoint.deleteMany({ where: { taskId: id } });
+    await prisma.question.deleteMany({ where: { taskId: id } });
+    await prisma.review.deleteMany({ where: { taskId: id } });
+    await prisma.task.delete({ where: { id } }).catch(() => {});
+  }
   await prisma.$disconnect();
 });
 
@@ -48,6 +45,7 @@ describe('Full create_app workflow', () => {
     });
 
     taskId = task.id;
+    createdTaskIds.push(taskId);
     expect(task.status).toBe('draft');
     expect(task.type).toBe('create_app');
     expect(task.progress).toBe(0);
@@ -275,6 +273,7 @@ describe('Question flow', () => {
       },
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
 
     // Create question
     const question = await prisma.question.create({
@@ -309,12 +308,7 @@ describe('Question flow', () => {
     expect(remaining).toHaveLength(0);
   });
 
-  afterAll(async () => {
-    if (taskId) {
-      await prisma.question.deleteMany({ where: { taskId } });
-      await prisma.task.delete({ where: { id: taskId } }).catch(() => {});
-    }
-  });
+  // Cleanup handled by top-level afterAll
 });
 
 describe('Checkpoint flow', () => {
@@ -332,6 +326,7 @@ describe('Checkpoint flow', () => {
       },
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
 
     // Interval checkpoint
     await prisma.checkpoint.create({
@@ -373,10 +368,5 @@ describe('Checkpoint flow', () => {
     expect(state.progress).toBe(25);
   });
 
-  afterAll(async () => {
-    if (taskId) {
-      await prisma.checkpoint.deleteMany({ where: { taskId } });
-      await prisma.task.delete({ where: { id: taskId } }).catch(() => {});
-    }
-  });
+  // Cleanup handled by top-level afterAll
 });

@@ -13,23 +13,21 @@ const prisma = new PrismaClient({
   datasources: { db: { url: `file:${dbPath}` } },
 });
 
-beforeAll(async () => {
-  // Clean up before tests
-  await prisma.log.deleteMany();
-  await prisma.checkpoint.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.settings.deleteMany();
-});
+// Track IDs for isolated cleanup
+const createdTaskIds: string[] = [];
+const createdSettingsKeys: string[] = [];
 
 afterAll(async () => {
-  await prisma.log.deleteMany();
-  await prisma.checkpoint.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.settings.deleteMany();
+  for (const id of createdTaskIds) {
+    await prisma.log.deleteMany({ where: { taskId: id } });
+    await prisma.checkpoint.deleteMany({ where: { taskId: id } });
+    await prisma.question.deleteMany({ where: { taskId: id } });
+    await prisma.review.deleteMany({ where: { taskId: id } });
+    await prisma.task.delete({ where: { id } }).catch(() => {});
+  }
+  for (const key of createdSettingsKeys) {
+    await prisma.settings.delete({ where: { key } }).catch(() => {});
+  }
   await prisma.$disconnect();
 });
 
@@ -45,6 +43,7 @@ describe('TaskRepository', () => {
       workspace: '/projects/test-app',
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
     expect(task.title).toBe('Test App');
     expect(task.type).toBe('create_app');
     expect(task.status).toBe('draft');
@@ -106,6 +105,7 @@ describe('ReviewRepository', () => {
       workspace: '/projects/review-test',
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
   });
 
   it('creates and retrieves a review', async () => {
@@ -146,6 +146,7 @@ describe('QuestionRepository', () => {
       workspace: '/projects/q-test',
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
   });
 
   it('creates and answers a question', async () => {
@@ -182,6 +183,7 @@ describe('CheckpointRepository', () => {
       workspace: '/projects/cp-test',
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
   });
 
   it('creates and retrieves checkpoints', async () => {
@@ -206,6 +208,7 @@ describe('SettingsRepository', () => {
   const repo = new SettingsRepository(prisma);
 
   it('sets and gets a setting', async () => {
+    createdSettingsKeys.push('claude_model');
     await repo.set('claude_model', 'claude-sonnet-4-5');
     const setting = await repo.get('claude_model');
     expect(setting).not.toBeNull();
@@ -219,12 +222,14 @@ describe('SettingsRepository', () => {
   });
 
   it('gets all settings', async () => {
+    createdSettingsKeys.push('key1');
     await repo.set('key1', 'value1');
     const all = await repo.getAll();
     expect(all.length).toBeGreaterThanOrEqual(1);
   });
 
   it('deletes a setting', async () => {
+    createdSettingsKeys.push('temp_key');
     await repo.set('temp_key', 'temp_val');
     await repo.delete('temp_key');
     const setting = await repo.get('temp_key');
@@ -245,6 +250,7 @@ describe('LogRepository', () => {
       workspace: '/projects/log-test',
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
   });
 
   it('creates and retrieves logs', async () => {

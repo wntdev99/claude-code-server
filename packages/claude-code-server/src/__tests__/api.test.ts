@@ -21,21 +21,18 @@ const prisma = new PrismaClient({
   datasources: { db: { url: `file:${dbPath}` } },
 });
 
-beforeAll(async () => {
-  // Clean slate
-  await prisma.log.deleteMany();
-  await prisma.checkpoint.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.task.deleteMany();
-});
+// Track task IDs created by this test file for cleanup
+const createdTaskIds: string[] = [];
 
 afterAll(async () => {
-  await prisma.log.deleteMany();
-  await prisma.checkpoint.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.task.deleteMany();
+  // Only clean up records created by this test file
+  for (const id of createdTaskIds) {
+    await prisma.log.deleteMany({ where: { taskId: id } });
+    await prisma.checkpoint.deleteMany({ where: { taskId: id } });
+    await prisma.question.deleteMany({ where: { taskId: id } });
+    await prisma.review.deleteMany({ where: { taskId: id } });
+    await prisma.task.delete({ where: { id } }).catch(() => {});
+  }
   await prisma.$disconnect();
 });
 
@@ -54,6 +51,7 @@ describe('Task API flow (custom workflow MVP)', () => {
     });
 
     taskId = task.id;
+    createdTaskIds.push(taskId);
     expect(task.title).toBe('Explain WebSockets');
     expect(task.type).toBe('custom');
     expect(task.status).toBe('draft');
@@ -213,6 +211,7 @@ describe('Review flow (phase-based workflow simulation)', () => {
       },
     });
     taskId = task.id;
+    createdTaskIds.push(taskId);
 
     // Agent completes Phase 1 - create review
     const review = await prisma.review.create({
@@ -250,10 +249,5 @@ describe('Review flow (phase-based workflow simulation)', () => {
     expect(updatedTask!.progress).toBe(25);
   });
 
-  afterAll(async () => {
-    if (taskId) {
-      await prisma.review.deleteMany({ where: { taskId } });
-      await prisma.task.delete({ where: { id: taskId } }).catch(() => {});
-    }
-  });
+  // Cleanup handled by top-level afterAll
 });
