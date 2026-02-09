@@ -19,6 +19,16 @@ describe('validatePath', () => {
     expect(validatePath('/projects/task-124/file.txt', workspace)).toBe(false);
   });
 
+  it('rejects deeply nested path traversal', () => {
+    expect(validatePath('/projects/task-123/a/b/c/../../../../etc/passwd', workspace)).toBe(false);
+  });
+
+  it('handles very long paths without crashing', () => {
+    const longSegment = 'a'.repeat(1000);
+    const longPath = `/projects/task-123/${longSegment}/file.txt`;
+    expect(validatePath(longPath, workspace)).toBe(true);
+  });
+
   it('blocks sensitive files', () => {
     expect(validatePath('/projects/task-123/.env', workspace)).toBe(false);
     expect(validatePath('/projects/task-123/id_rsa', workspace)).toBe(false);
@@ -41,6 +51,14 @@ describe('sanitizeInput', () => {
 
   it('preserves normal text', () => {
     expect(sanitizeInput('Create a React todo app')).toBe('Create a React todo app');
+  });
+
+  it('handles strings with only special characters', () => {
+    expect(sanitizeInput('<>\0')).toBe('');
+  });
+
+  it('handles strings with mixed content', () => {
+    expect(sanitizeInput('  <b>hello</b>\0world  ')).toBe('bhello/bworld');
   });
 });
 

@@ -66,3 +66,49 @@ describe('formatFileSize', () => {
     expect(formatFileSize(1572864)).toBe('1.5MB');
   });
 });
+
+describe('boundary values', () => {
+  it('formatTokens handles zero', () => {
+    expect(formatTokens(0)).toBe('0');
+  });
+
+  it('formatTokens handles exact boundary 1000', () => {
+    expect(formatTokens(1000)).toBe('1.0K');
+  });
+
+  it('formatTokens handles exact boundary 1000000', () => {
+    expect(formatTokens(1000000)).toBe('1.0M');
+  });
+
+  it('formatDuration handles zero', () => {
+    expect(formatDuration(0)).toBe('0ms');
+  });
+
+  it('formatDuration handles exact second boundary', () => {
+    expect(formatDuration(1000)).toBe('1s');
+  });
+
+  it('formatDuration handles exact minute boundary', () => {
+    expect(formatDuration(60000)).toBe('1m');
+  });
+
+  it('formatFileSize handles zero', () => {
+    expect(formatFileSize(0)).toBe('0B');
+  });
+
+  it('formatFileSize handles exact KB boundary', () => {
+    expect(formatFileSize(1024)).toBe('1.0KB');
+  });
+
+  it('formatCost handles zero', () => {
+    expect(formatCost(0)).toBe('$0.0000');
+  });
+
+  it('formatProgress handles zero', () => {
+    expect(formatProgress(0)).toBe('0%');
+  });
+
+  it('formatProgress handles exactly 100', () => {
+    expect(formatProgress(100)).toBe('100%');
+  });
+});
