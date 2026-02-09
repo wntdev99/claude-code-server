@@ -90,6 +90,21 @@ describe('TaskRepository', () => {
     const found = await repo.findById(temp.id);
     expect(found).toBeNull();
   });
+
+  it('returns null for non-existent task id', async () => {
+    const task = await repo.findById('non-existent-id-12345');
+    expect(task).toBeNull();
+  });
+
+  it('filters by status', async () => {
+    const { tasks } = await repo.findAll({ status: 'draft' });
+    expect(tasks.every((t) => t.status === 'draft')).toBe(true);
+  });
+
+  it('filters by type and status combined', async () => {
+    const { tasks } = await repo.findAll({ type: 'create_app', status: 'in_progress' });
+    expect(tasks.every((t) => t.type === 'create_app' && t.status === 'in_progress')).toBe(true);
+  });
 });
 
 describe('ReviewRepository', () => {
@@ -131,6 +146,41 @@ describe('ReviewRepository', () => {
     expect(updated.status).toBe('approved');
     expect(updated.feedback).toBe('Looks good!');
   });
+
+  it('findByTaskId returns empty array for non-existent task', async () => {
+    const reviews = await repo.findByTaskId('non-existent-task');
+    expect(reviews).toEqual([]);
+  });
+
+  it('stores and retrieves deliverables as JSON', async () => {
+    const deliverables = [
+      { path: 'src/index.ts', size: 500 },
+      { path: 'src/app.tsx', size: 1200 },
+    ];
+    const review = await repo.create({
+      taskId,
+      phase: 2,
+      deliverables: JSON.stringify(deliverables),
+    });
+    const parsed = JSON.parse(review.deliverables);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].path).toBe('src/index.ts');
+  });
+
+  it('handles changes_requested with feedback', async () => {
+    const review = await repo.create({
+      taskId,
+      phase: 1,
+      deliverables: '[]',
+    });
+    const updated = await repo.updateStatus(
+      review.id,
+      'changes_requested',
+      'Please add more detail to section 3'
+    );
+    expect(updated.status).toBe('changes_requested');
+    expect(updated.feedback).toBe('Please add more detail to section 3');
+  });
 });
 
 describe('QuestionRepository', () => {
@@ -168,6 +218,24 @@ describe('QuestionRepository', () => {
     const remaining = await repo.findUnanswered(taskId);
     expect(remaining.length).toBe(0);
   });
+
+  it('stores options as JSON and retrieves correctly', async () => {
+    const opts = ['React', 'Vue', 'Angular'];
+    const q = await repo.create({
+      taskId,
+      category: 'choice',
+      question: 'Which framework?',
+      options: JSON.stringify(opts),
+    });
+    expect(JSON.parse(q.options as string)).toEqual(opts);
+  });
+
+  it('creates multiple questions per task', async () => {
+    await repo.create({ taskId, category: 'business', question: 'Q1?', options: '[]' });
+    await repo.create({ taskId, category: 'clarification', question: 'Q2?', options: '[]' });
+    const all = await repo.findByTaskId(taskId);
+    expect(all.length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe('CheckpointRepository', () => {
@@ -201,6 +269,24 @@ describe('CheckpointRepository', () => {
     const latest = await repo.findLatest(taskId);
     expect(latest).not.toBeNull();
     expect(latest!.reason).toBe('phase_complete');
+  });
+
+  it('findLatest returns null when no checkpoints exist', async () => {
+    const latest = await repo.findLatest('no-checkpoints-task');
+    expect(latest).toBeNull();
+  });
+
+  it('stores and parses state JSON correctly', async () => {
+    const state = { currentPhase: 2, progress: 75, lastOutput: 'working...' };
+    const cp = await repo.create({
+      taskId,
+      reason: 'manual',
+      state: JSON.stringify(state),
+    });
+    const parsed = JSON.parse(cp.state as string);
+    expect(parsed.currentPhase).toBe(2);
+    expect(parsed.progress).toBe(75);
+    expect(parsed.lastOutput).toBe('working...');
   });
 });
 
@@ -268,5 +354,19 @@ describe('LogRepository', () => {
     }
     const logs = await repo.findByTaskId(taskId, { limit: 3, offset: 0 });
     expect(logs.length).toBe(3);
+  });
+
+  it('deletes all logs for a task', async () => {
+    await repo.create({ taskId, level: 'info', message: 'msg1' });
+    await repo.create({ taskId, level: 'info', message: 'msg2' });
+    await repo.deleteByTaskId(taskId);
+    const logs = await repo.findByTaskId(taskId);
+    expect(logs.length).toBe(0);
+  });
+
+  it('creates log with metadata', async () => {
+    const meta = JSON.stringify({ tokens: 1500, phase: 1 });
+    const log = await repo.create({ taskId, level: 'info', message: 'with meta', metadata: meta });
+    expect(log.metadata).toBe(meta);
   });
 });
