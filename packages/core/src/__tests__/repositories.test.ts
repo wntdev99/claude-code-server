@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
 import { TaskRepository } from '../repositories/TaskRepository.js';
 import { ReviewRepository } from '../repositories/ReviewRepository.js';
 import { QuestionRepository } from '../repositories/QuestionRepository.js';
@@ -7,7 +8,10 @@ import { CheckpointRepository } from '../repositories/CheckpointRepository.js';
 import { SettingsRepository } from '../repositories/SettingsRepository.js';
 import { LogRepository } from '../repositories/LogRepository.js';
 
-const prisma = new PrismaClient();
+const dbPath = path.resolve(__dirname, '../../prisma/dev.db');
+const prisma = new PrismaClient({
+  datasources: { db: { url: `file:${dbPath}` } },
+});
 
 beforeAll(async () => {
   // Clean up before tests

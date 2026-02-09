@@ -2,6 +2,10 @@ import { prisma } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import { LogStream } from './LogStream';
 import { TaskActions } from './TaskActions';
+import { QuestionCard } from '@/components/question/QuestionCard';
+import { ReviewPanel } from '@/components/review/ReviewPanel';
+import { PhaseTimeline } from '@/components/progress/PhaseTimeline';
+import { TokenUsageCard } from '@/components/progress/TokenUsageCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +36,22 @@ export default async function TaskDetailPage({
     failed: 'bg-red-100 text-red-700',
   };
 
+  // Split reviews into active (pending/in_review) and history
+  const activeReview = task.reviews.find(
+    (r) => r.status === 'pending' || r.status === 'in_review'
+  );
+  const reviewHistory = task.reviews.filter(
+    (r) => r.status !== 'pending' && r.status !== 'in_review'
+  );
+
+  // Sort questions: unanswered first, then answered
+  const sortedQuestions = [
+    ...task.questions.filter((q) => !q.answer),
+    ...task.questions.filter((q) => !!q.answer),
+  ];
+
+  const isActive = task.status === 'in_progress' || task.status === 'review';
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -47,16 +67,17 @@ export default async function TaskDetailPage({
             >
               {task.status}
             </span>
-            {task.currentPhase && (
-              <span className="text-sm text-gray-500">
-                Phase {task.currentPhase}
-              </span>
-            )}
-            <span className="text-sm text-gray-500">{task.progress}%</span>
           </div>
         </div>
         <TaskActions taskId={task.id} status={task.status} />
       </div>
+
+      {/* Phase Timeline */}
+      <PhaseTimeline
+        taskType={task.type}
+        currentPhase={task.currentPhase}
+        progress={task.progress}
+      />
 
       {/* Description */}
       <div className="rounded-lg border bg-white p-4">
@@ -66,41 +87,55 @@ export default async function TaskDetailPage({
         </p>
       </div>
 
-      {/* Progress bar */}
-      <div className="rounded-lg border bg-white p-4">
-        <h2 className="mb-2 font-semibold">Progress</h2>
-        <div className="h-2 w-full rounded-full bg-gray-200">
-          <div
-            className="h-2 rounded-full bg-blue-600 transition-all"
-            style={{ width: `${task.progress}%` }}
-          />
-        </div>
-      </div>
+      {/* Token Usage */}
+      {isActive && (
+        <TokenUsageCard
+          taskId={task.id}
+          active={task.status === 'in_progress'}
+        />
+      )}
 
-      {/* Pending Questions */}
-      {task.questions.filter((q) => !q.answer).length > 0 && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-          <h2 className="mb-2 font-semibold text-yellow-800">
-            Pending Questions
+      {/* Questions */}
+      {sortedQuestions.length > 0 && (
+        <div>
+          <h2 className="mb-3 font-semibold">
+            Questions
+            {sortedQuestions.filter((q) => !q.answer).length > 0 && (
+              <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
+                {sortedQuestions.filter((q) => !q.answer).length} pending
+              </span>
+            )}
           </h2>
-          {task.questions
-            .filter((q) => !q.answer)
-            .map((q) => (
-              <div key={q.id} className="mt-2 rounded bg-white p-3">
-                <p className="font-medium">{q.question}</p>
-                <p className="mt-1 text-xs text-gray-500">
-                  Category: {q.category}
-                </p>
-              </div>
+          <div className="space-y-3">
+            {sortedQuestions.map((q) => (
+              <QuestionCard
+                key={q.id}
+                question={{
+                  ...q,
+                  answeredAt: q.answeredAt?.toISOString() ?? null,
+                  createdAt: q.createdAt.toISOString(),
+                }}
+              />
             ))}
+          </div>
         </div>
       )}
 
-      {/* Reviews */}
-      {task.reviews.length > 0 && (
+      {/* Active Review */}
+      {activeReview && (
+        <ReviewPanel
+          review={{
+            ...activeReview,
+            createdAt: activeReview.createdAt.toISOString(),
+          }}
+        />
+      )}
+
+      {/* Review History */}
+      {reviewHistory.length > 0 && (
         <div className="rounded-lg border bg-white p-4">
-          <h2 className="mb-2 font-semibold">Reviews</h2>
-          {task.reviews.map((r) => (
+          <h2 className="mb-2 font-semibold">Review History</h2>
+          {reviewHistory.map((r) => (
             <div
               key={r.id}
               className="mt-2 rounded border p-3 text-sm"

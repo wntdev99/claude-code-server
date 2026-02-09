@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
 
 /**
  * Phase 5 Verification: API integration tests
@@ -15,7 +16,10 @@ import { PrismaClient } from '@prisma/client';
  * calls, so testing the DB operations validates the core logic.
  */
 
-const prisma = new PrismaClient();
+const dbPath = path.resolve(__dirname, '../../../core/prisma/dev.db');
+const prisma = new PrismaClient({
+  datasources: { db: { url: `file:${dbPath}` } },
+});
 
 beforeAll(async () => {
   // Clean slate

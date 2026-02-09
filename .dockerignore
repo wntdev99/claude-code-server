@@ -1,0 +1,14 @@
+node_modules
+.next
+dist
+.git
+*.db
+*.sqlite
+.env
+.env.*
+!.env.example
+coverage
+.nyc_output
+.turbo
+.cache
+.archive
