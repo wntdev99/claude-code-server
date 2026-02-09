@@ -33,7 +33,7 @@ export class AgentProcess extends EventEmitter {
       throw new Error('Process already spawned. Terminate first.');
     }
 
-    this.process = spawn('claude', ['--print', '--output-format', 'text', prompt], {
+    this.process = spawn('claude', ['-p', prompt], {
       cwd: options.cwd,
       env: {
         ...process.env,
@@ -43,6 +43,9 @@ export class AgentProcess extends EventEmitter {
     });
 
     this._isRunning = true;
+
+    // Close stdin so claude -p doesn't wait for additional input
+    this.process.stdin?.end();
 
     this.process.stdout?.on('data', (data: Buffer) => {
       this.emit('stdout', data.toString());
