@@ -218,4 +218,61 @@ Documents created:
       expect(results.length).toBe(2);
     });
   });
+
+  describe('edge cases', () => {
+    it('returns null for empty input', () => {
+      expect(parser.parse('')).toBeNull();
+    });
+
+    it('returns null for malformed protocol without closing tag', () => {
+      const input = '[USER_QUESTION]\ncategory: broken\nquestion: Incomplete\n';
+      // Feed but no closing tag, should not parse
+      expect(parser.parse(input)).toBeNull();
+    });
+
+    it('handles very large non-protocol output without crashing', () => {
+      const bigOutput = 'x'.repeat(100_000);
+      expect(parser.parse(bigOutput)).toBeNull();
+    });
+
+    it('handles unicode in question text', () => {
+      const input = `[USER_QUESTION]
+category: clarification
+question: 어떤 데이터베이스를 사용하시겠습니까?
+options:
+  - PostgreSQL
+  - MySQL
+[/USER_QUESTION]`;
+      const result = parser.parse(input);
+      expect(result).not.toBeNull();
+      if (result!.type === 'USER_QUESTION') {
+        expect(result!.question).toContain('데이터베이스');
+      }
+    });
+
+    it('handles emoji in protocol content', () => {
+      const input = `[USER_QUESTION]
+category: choice
+question: Choose theme 🎨
+options:
+  - Light ☀️
+  - Dark 🌙
+[/USER_QUESTION]`;
+      const result = parser.parse(input);
+      expect(result).not.toBeNull();
+      if (result!.type === 'USER_QUESTION') {
+        expect(result!.question).toContain('🎨');
+        expect(result!.options).toEqual(['Light ☀️', 'Dark 🌙']);
+      }
+    });
+
+    it('reset clears buffer state', () => {
+      parser.feed('[USER_QUESTION]\ncategory: test\n');
+      parser.reset();
+      // After reset, the partial message is gone
+      const results = parser.feed('question: Q?\noptions:\n  - A\n[/USER_QUESTION]');
+      // Should not form a complete protocol since the header was cleared
+      expect(results.length).toBe(0);
+    });
+  });
 });

@@ -121,4 +121,41 @@ describe('StateMachine', () => {
     sm.reset();
     expect(sm.state).toBe('idle');
   });
+
+  it('completed is a terminal state - rejects all transitions', () => {
+    sm.transition('execute');
+    sm.transition('complete');
+    expect(sm.state).toBe('completed');
+    expect(sm.validActions()).toEqual([]);
+    expect(() => sm.transition('execute')).toThrow();
+    expect(() => sm.transition('pause')).toThrow();
+    expect(() => sm.transition('fail')).toThrow();
+  });
+
+  it('failed is a terminal state - rejects all transitions', () => {
+    sm.transition('execute');
+    sm.transition('fail');
+    expect(sm.state).toBe('failed');
+    expect(sm.validActions()).toEqual([]);
+    expect(() => sm.transition('execute')).toThrow();
+    expect(() => sm.transition('resume')).toThrow();
+  });
+
+  it('multiple listeners all receive transition events', () => {
+    const log1: string[] = [];
+    const log2: string[] = [];
+    sm.onTransition((from, to) => log1.push(`${from}->${to}`));
+    sm.onTransition((from, to) => log2.push(`${from}->${to}`));
+    sm.transition('execute');
+    expect(log1).toEqual(['idle->running']);
+    expect(log2).toEqual(['idle->running']);
+  });
+
+  it('canTransition correctly checks from waiting_review', () => {
+    sm.transition('execute');
+    sm.transition('phase_complete');
+    expect(sm.canTransition('approve')).toBe(true);
+    expect(sm.canTransition('rework')).toBe(true);
+    expect(sm.canTransition('execute')).toBe(false);
+  });
 });
