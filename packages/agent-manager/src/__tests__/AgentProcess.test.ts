@@ -227,17 +227,4 @@ describe('AgentProcess', () => {
     }, 5000);
   });
 
-  describe('sendInput', () => {
-    it('writes to stdin', async () => {
-      await agent.spawn('Test', { cwd: '/tmp' });
-      // stdin.end() was called during spawn, so writable would be false in real scenario
-      // But our mock keeps writable=true for testing sendInput
-      agent.sendInput('user response');
-      expect(mockChild.stdin.write).toHaveBeenCalledWith('user response\n');
-    });
-
-    it('throws when process not running', () => {
-      expect(() => agent.sendInput('test')).toThrow('Cannot write to agent stdin');
-    });
-  });
 });

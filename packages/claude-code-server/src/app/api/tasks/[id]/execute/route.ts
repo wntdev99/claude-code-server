@@ -60,6 +60,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     // Handle protocol events
     const collector = new DeliverableCollector();
     const verifier = new VerificationAgent();
+    // Track rework attempts per phase to enforce MAX_REWORK_ATTEMPTS
+    const reworkAttempts: Record<number, number> = {};
 
     agentManager.on(`protocol:${id}`, async (protocol: { type: string; [key: string]: unknown }) => {
       try {
@@ -92,16 +94,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
             // Run verification for structured workflows
             if (hasReviewGate(taskType)) {
-              const result = verifier.verify(deliverables, phaseDef);
+              const attempt = (reworkAttempts[phase] || 0) + 1;
+              const result = verifier.verify(deliverables, phaseDef, attempt);
               if (!result.passed && verifier.shouldAutoRework(result)) {
-                // Auto-rework: send feedback to agent and let it retry
+                // Auto-rework: respawn agent with feedback in prompt
+                reworkAttempts[phase] = attempt;
                 const feedback = verifier.generateFeedback(result);
-                agentManager.requestRework(id, feedback);
+                await agentManager.requestRework(id, feedback);
                 await prisma.log.create({
                   data: {
                     taskId: id,
                     level: 'warn',
-                    message: `[verification] Auto-rework triggered: ${feedback}`,
+                    message: `[verification] Auto-rework triggered (attempt ${attempt}): ${feedback}`,
                   },
                 });
                 return; // Don't create review yet
@@ -142,10 +146,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
       agentManager.removeAllListeners(`exit:${id}`);
     };
 
-    // Listen for completion
-    agentManager.once(`exit:${id}`, async (code: number | null) => {
-      const finalStatus = code === 0 ? 'completed' : 'failed';
+    // Listen for agent exit events (use 'on' instead of 'once' to handle multi-phase exits)
+    agentManager.on(`exit:${id}`, async (code: number | null) => {
       try {
+        // Re-read task to check current status before overriding
+        const currentTask = await prisma.task.findUnique({ where: { id } });
+        if (!currentTask) {
+          cleanup();
+          return;
+        }
+
+        // If task is in review state, the agent exited after PHASE_COMPLETE was detected.
+        // Don't override — the review/approve flow will handle the next phase.
+        if (currentTask.status === 'review') {
+          return;
+        }
+
+        // If task is already in a terminal state, don't override
+        if (currentTask.status === 'completed' || currentTask.status === 'failed') {
+          cleanup();
+          return;
+        }
+
+        const finalStatus = code === 0 ? 'completed' : 'failed';
         await prisma.task.update({
           where: { id },
           data: { status: finalStatus, progress: code === 0 ? 100 : undefined },

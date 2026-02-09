@@ -16,14 +16,15 @@ class MockAgentProcess extends EventEmitter {
     this.isRunning = false;
     this.emit('exit', 0);
   });
-  sendInput = vi.fn();
 }
 
 let latestMockProcess: MockAgentProcess;
+const allMockProcesses: MockAgentProcess[] = [];
 
 vi.mock('../AgentProcess.js', () => ({
   AgentProcess: vi.fn(() => {
     latestMockProcess = new MockAgentProcess();
+    allMockProcesses.push(latestMockProcess);
     return latestMockProcess;
   }),
 }));
@@ -34,6 +35,7 @@ describe('AgentManager', () => {
   beforeEach(() => {
     // Create a fresh instance (bypass singleton for testing)
     manager = new AgentManager();
+    allMockProcesses.length = 0;
     vi.clearAllMocks();
   });
 
@@ -253,10 +255,42 @@ describe('AgentManager', () => {
       latestMockProcess.emit('exit', 0);
       expect(manager.getRunningTaskIds()).not.toContain('task-1');
     });
+
+    it('ignores exit during respawn (isRespawning flag)', async () => {
+      await manager.executeTask('task-1', 'prompt', { workspace: '/tmp' });
+      const firstProc = latestMockProcess;
+
+      // Get to waiting_review
+      firstProc.emit(
+        'stdout',
+        '=== PHASE 1 COMPLETE ===\nCompleted: Phase 1\nDocuments created:\n- doc.md\n'
+      );
+      expect(manager.getState('task-1')).toBe('waiting_review');
+
+      // Respawn via requestRework (async)
+      const reworkPromise = manager.requestRework('task-1', 'Fix issues');
+
+      // The old process terminate fires exit, but isRespawning should prevent cleanup
+      await reworkPromise;
+
+      // Agent should still be in registry with running state (respawned)
+      expect(manager.getState('task-1')).toBe('running');
+      expect(manager.getRunningTaskIds()).toContain('task-1');
+
+      // New process was spawned
+      const newProc = latestMockProcess;
+      expect(newProc).not.toBe(firstProc);
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('Rework Required'),
+        expect.any(Object)
+      );
+
+      newProc.emit('exit', 0);
+    });
   });
 
   describe('approveReview', () => {
-    it('transitions from waiting_review to running', async () => {
+    it('resumes agent on last phase approval (no nextPhasePrompt)', async () => {
       await manager.executeTask('task-1', 'prompt', { workspace: '/tmp' });
       const proc = latestMockProcess;
 
@@ -267,52 +301,114 @@ describe('AgentManager', () => {
       );
       expect(manager.getState('task-1')).toBe('waiting_review');
 
-      manager.approveReview('task-1');
+      await manager.approveReview('task-1');
       expect(manager.getState('task-1')).toBe('running');
       expect(proc.resume).toHaveBeenCalled();
 
       proc.emit('exit', 0);
     });
-  });
 
-  describe('requestRework', () => {
-    it('transitions from waiting_review to running with feedback', async () => {
-      await manager.executeTask('task-1', 'prompt', { workspace: '/tmp' });
-      const proc = latestMockProcess;
+    it('respawns agent with next phase prompt when provided', async () => {
+      await manager.executeTask('task-1', 'phase 1 prompt', { workspace: '/tmp' });
+      const firstProc = latestMockProcess;
 
       // Get to waiting_review
-      proc.emit(
+      firstProc.emit(
         'stdout',
         '=== PHASE 1 COMPLETE ===\nCompleted: Phase 1\nDocuments created:\n- doc.md\n'
       );
 
-      manager.requestRework('task-1', 'Add more detail');
-      expect(manager.getState('task-1')).toBe('running');
-      expect(proc.resume).toHaveBeenCalled();
-      expect(proc.sendInput).toHaveBeenCalledWith('Add more detail');
+      await manager.approveReview('task-1', 'phase 2 prompt', {
+        workspace: '/tmp',
+        env: { CURRENT_PHASE: '2' },
+      });
 
-      proc.emit('exit', 0);
+      // Should have spawned a new process
+      const newProc = latestMockProcess;
+      expect(newProc).not.toBe(firstProc);
+      expect(newProc.spawn).toHaveBeenCalledWith('phase 2 prompt', {
+        cwd: '/tmp',
+        env: { CURRENT_PHASE: '2' },
+      });
+      expect(manager.getState('task-1')).toBe('running');
+
+      // Old process should have been terminated
+      expect(firstProc.terminate).toHaveBeenCalled();
+
+      newProc.emit('exit', 0);
+    });
+  });
+
+  describe('requestRework', () => {
+    it('respawns agent with augmented prompt containing feedback', async () => {
+      await manager.executeTask('task-1', 'original prompt', { workspace: '/tmp' });
+      const firstProc = latestMockProcess;
+
+      // Get to waiting_review
+      firstProc.emit(
+        'stdout',
+        '=== PHASE 1 COMPLETE ===\nCompleted: Phase 1\nDocuments created:\n- doc.md\n'
+      );
+
+      await manager.requestRework('task-1', 'Add more detail');
+
+      const newProc = latestMockProcess;
+      expect(newProc).not.toBe(firstProc);
+      expect(manager.getState('task-1')).toBe('running');
+      expect(firstProc.terminate).toHaveBeenCalled();
+
+      // New process should have been spawned with augmented prompt
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('original prompt'),
+        expect.any(Object)
+      );
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('Rework Required'),
+        expect.any(Object)
+      );
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('Add more detail'),
+        expect.any(Object)
+      );
+
+      newProc.emit('exit', 0);
     });
   });
 
   describe('sendAnswer', () => {
-    it('transitions from waiting_question to running', async () => {
-      await manager.executeTask('task-1', 'prompt', { workspace: '/tmp' });
-      const proc = latestMockProcess;
+    it('respawns agent with augmented prompt containing answer', async () => {
+      await manager.executeTask('task-1', 'original prompt', { workspace: '/tmp' });
+      const firstProc = latestMockProcess;
 
       // Get to waiting_question
-      proc.emit(
+      firstProc.emit(
         'stdout',
         '[USER_QUESTION]\ncategory: choice\nquestion: Pick\noptions:\n  - A\n  - B\n[/USER_QUESTION]'
       );
       expect(manager.getState('task-1')).toBe('waiting_question');
 
-      manager.sendAnswer('task-1', 'A');
-      expect(manager.getState('task-1')).toBe('running');
-      expect(proc.resume).toHaveBeenCalled();
-      expect(proc.sendInput).toHaveBeenCalledWith('A');
+      await manager.sendAnswer('task-1', 'A');
 
-      proc.emit('exit', 0);
+      const newProc = latestMockProcess;
+      expect(newProc).not.toBe(firstProc);
+      expect(manager.getState('task-1')).toBe('running');
+      expect(firstProc.terminate).toHaveBeenCalled();
+
+      // New process should have been spawned with augmented prompt
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('original prompt'),
+        expect.any(Object)
+      );
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('Answer to Previous Question'),
+        expect.any(Object)
+      );
+      expect(newProc.spawn).toHaveBeenCalledWith(
+        expect.stringContaining('A'),
+        expect.any(Object)
+      );
+
+      newProc.emit('exit', 0);
     });
   });
 
@@ -325,8 +421,8 @@ describe('AgentManager', () => {
       expect(() => manager.resume('no-task')).toThrow('No agent found for task no-task');
     });
 
-    it('throws when getting non-existent task for sendAnswer', () => {
-      expect(() => manager.sendAnswer('no-task', 'answer')).toThrow(
+    it('throws when getting non-existent task for sendAnswer', async () => {
+      await expect(manager.sendAnswer('no-task', 'answer')).rejects.toThrow(
         'No agent found for task no-task'
       );
     });

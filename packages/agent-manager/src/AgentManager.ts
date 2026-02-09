@@ -14,6 +14,9 @@ export interface AgentInfo {
   stateMachine: StateMachine;
   startedAt: Date;
   workspace?: string;
+  lastPrompt?: string;
+  lastEnv?: Record<string, string>;
+  isRespawning?: boolean;
 }
 
 /**
@@ -67,77 +70,14 @@ export class AgentManager extends EventEmitter {
       stateMachine,
       startedAt: new Date(),
       workspace: options.workspace,
+      lastPrompt: prompt,
+      lastEnv: options.env,
     };
 
     this.agents.set(taskId, info);
 
     // Wire up event handlers
-    agentProcess.on('stdout', (data: string) => {
-      this.emit(`log:${taskId}`, data);
-
-      // Track token usage
-      this.tokenTracker.processOutput(taskId, data);
-
-      // Parse for protocols
-      const protocols = parser.feed(data);
-      for (const protocol of protocols) {
-        this.handleProtocol(taskId, protocol);
-      }
-    });
-
-    agentProcess.on('stderr', (data: string) => {
-      this.emit(`log:${taskId}`, `[stderr] ${data}`);
-
-      // Check for rate limiting
-      const rateLimitInfo = this.rateLimitDetector.detect(data);
-      if (rateLimitInfo && stateMachine.state === 'running') {
-        // Create checkpoint before pausing
-        this.checkpointManager.create(
-          taskId,
-          'rate_limit',
-          { lastOutput: data },
-          options.workspace
-        ).catch(() => {});
-
-        this.rateLimitDetector.handle(
-          taskId,
-          rateLimitInfo,
-          () => {
-            if (stateMachine.canTransition('pause')) {
-              stateMachine.transition('pause');
-              agentProcess.pause();
-            }
-          },
-          () => {
-            if (stateMachine.canTransition('resume')) {
-              stateMachine.transition('resume');
-              agentProcess.resume();
-            }
-          }
-        );
-      }
-    });
-
-    agentProcess.on('exit', (code: number | null) => {
-      // Stop auto-checkpointing
-      this.checkpointManager.stopAutoCheckpoint(taskId);
-      this.rateLimitDetector.cancelResume(taskId);
-
-      if (stateMachine.state === 'running') {
-        if (code === 0) {
-          stateMachine.transition('complete');
-        } else {
-          stateMachine.transition('fail');
-        }
-      }
-      this.emit(`state:${taskId}`, stateMachine.state);
-      this.emit(`exit:${taskId}`, code);
-      this.agents.delete(taskId);
-    });
-
-    agentProcess.on('error', (err: Error) => {
-      this.emit(`log:${taskId}`, `[error] ${err.message}`);
-    });
+    this.wireProcessEvents(taskId, info);
 
     // Track state transitions
     stateMachine.onTransition((from, to, action) => {
@@ -183,42 +123,57 @@ export class AgentManager extends EventEmitter {
   }
 
   /**
-   * Send answer to an agent's pending question.
+   * Send answer to an agent's pending question by respawning with augmented prompt.
+   * Since claude -p is one-shot and stdin is closed, we respawn with the answer in the prompt.
    */
-  sendAnswer(taskId: string, answer: string): void {
+  async sendAnswer(taskId: string, answer: string): Promise<void> {
     const info = this.getAgent(taskId);
-    if (info.stateMachine.state === 'waiting_question') {
-      info.stateMachine.transition('answer');
-      info.process.resume();
-    }
-    try {
-      info.process.sendInput(answer);
-    } catch {
-      // Process may have exited between state check and sendInput
-    }
+    if (info.stateMachine.state !== 'waiting_question') return;
+
+    const augmentedPrompt = `${info.lastPrompt}\n\n## Answer to Previous Question\n\nThe user provided the following answer to your question:\n\n${answer}\n\nPlease continue with your work using this information.`;
+
+    await this.respawnAgent(taskId, augmentedPrompt, {
+      workspace: info.workspace!,
+      env: info.lastEnv,
+    });
   }
 
   /**
-   * Approve a review and resume the agent.
+   * Approve a review and advance to the next phase.
+   * For non-last phases, provide nextPhasePrompt and options to spawn a new agent.
+   * For the last phase, the existing process is resumed and will exit naturally.
    */
-  approveReview(taskId: string): void {
+  async approveReview(
+    taskId: string,
+    nextPhasePrompt?: string,
+    options?: { workspace: string; env?: Record<string, string> }
+  ): Promise<void> {
     const info = this.getAgent(taskId);
-    if (info.stateMachine.state === 'waiting_review') {
+    if (info.stateMachine.state !== 'waiting_review') return;
+
+    if (nextPhasePrompt && options) {
+      // Non-last phase: respawn with next phase prompt
+      await this.respawnAgent(taskId, nextPhasePrompt, options);
+    } else {
+      // Last phase: resume existing process (it will exit naturally → completed)
       info.stateMachine.transition('approve');
       info.process.resume();
     }
   }
 
   /**
-   * Request rework after review.
+   * Request rework after review by respawning with feedback in the prompt.
    */
-  requestRework(taskId: string, feedback: string): void {
+  async requestRework(taskId: string, feedback: string): Promise<void> {
     const info = this.getAgent(taskId);
-    if (info.stateMachine.state === 'waiting_review') {
-      info.stateMachine.transition('rework');
-      info.process.resume();
-      info.process.sendInput(feedback);
-    }
+    if (info.stateMachine.state !== 'waiting_review') return;
+
+    const augmentedPrompt = `${info.lastPrompt}\n\n## Rework Required\n\nThe previous deliverables did not pass review. Please address the following feedback and resubmit:\n\n${feedback}`;
+
+    await this.respawnAgent(taskId, augmentedPrompt, {
+      workspace: info.workspace!,
+      env: info.lastEnv,
+    });
   }
 
   /**
@@ -265,6 +220,150 @@ export class AgentManager extends EventEmitter {
     await Promise.all(ids.map((id) => this.terminate(id)));
     this.checkpointManager.stopAll();
     this.rateLimitDetector.cancelAll();
+  }
+
+  /**
+   * Respawn an agent with a new prompt. Terminates the old process and spawns a new one
+   * while preserving the AgentInfo entry (state machine, event listeners on AgentManager).
+   */
+  private async respawnAgent(
+    taskId: string,
+    newPrompt: string,
+    options: { workspace: string; env?: Record<string, string> }
+  ): Promise<void> {
+    const info = this.agents.get(taskId);
+    if (!info) {
+      return this.executeTask(taskId, newPrompt, options);
+    }
+
+    // Mark as respawning so exit handler ignores this termination
+    info.isRespawning = true;
+
+    // Stop timers during transition
+    this.checkpointManager.stopAutoCheckpoint(taskId);
+    this.rateLimitDetector.cancelResume(taskId);
+
+    // Clean up old process
+    info.process.removeAllListeners();
+    await info.process.terminate().catch(() => {});
+
+    // Create fresh process and parser
+    const newProcess = new AgentProcess();
+    const newParser = new ProtocolParser();
+    info.process = newProcess;
+    info.parser = newParser;
+    info.lastPrompt = newPrompt;
+    info.lastEnv = options.env;
+    info.isRespawning = false;
+
+    // Ensure state machine is in running state
+    if (info.stateMachine.canTransition('approve')) {
+      info.stateMachine.transition('approve');
+    } else if (info.stateMachine.canTransition('rework')) {
+      info.stateMachine.transition('rework');
+    } else if (info.stateMachine.canTransition('answer')) {
+      info.stateMachine.transition('answer');
+    } else if (info.stateMachine.canTransition('resume')) {
+      info.stateMachine.transition('resume');
+    }
+
+    // Wire events on new process
+    this.wireProcessEvents(taskId, info);
+
+    // Restart auto-checkpointing
+    this.checkpointManager.startAutoCheckpoint(
+      taskId,
+      () => ({
+        currentPhase: null,
+        progress: 0,
+        lastOutput: '',
+      }),
+      options.workspace
+    );
+
+    // Spawn new process
+    await newProcess.spawn(newPrompt, {
+      cwd: options.workspace,
+      env: options.env,
+    });
+  }
+
+  /**
+   * Wire stdout/stderr/exit/error event handlers on an agent process.
+   * Extracted from executeTask to allow reuse during respawn.
+   */
+  private wireProcessEvents(taskId: string, info: AgentInfo): void {
+    const { process: agentProcess, stateMachine } = info;
+
+    agentProcess.on('stdout', (data: string) => {
+      this.emit(`log:${taskId}`, data);
+
+      // Track token usage
+      this.tokenTracker.processOutput(taskId, data);
+
+      // Parse for protocols (use info.parser so respawn picks up new parser)
+      const protocols = info.parser.feed(data);
+      for (const protocol of protocols) {
+        this.handleProtocol(taskId, protocol);
+      }
+    });
+
+    agentProcess.on('stderr', (data: string) => {
+      this.emit(`log:${taskId}`, `[stderr] ${data}`);
+
+      // Check for rate limiting
+      const rateLimitInfo = this.rateLimitDetector.detect(data);
+      if (rateLimitInfo && stateMachine.state === 'running') {
+        // Create checkpoint before pausing
+        this.checkpointManager.create(
+          taskId,
+          'rate_limit',
+          { lastOutput: data },
+          info.workspace
+        ).catch(() => {});
+
+        this.rateLimitDetector.handle(
+          taskId,
+          rateLimitInfo,
+          () => {
+            if (stateMachine.canTransition('pause')) {
+              stateMachine.transition('pause');
+              agentProcess.pause();
+            }
+          },
+          () => {
+            if (stateMachine.canTransition('resume')) {
+              stateMachine.transition('resume');
+              agentProcess.resume();
+            }
+          }
+        );
+      }
+    });
+
+    agentProcess.on('exit', (code: number | null) => {
+      // Skip exit handling during respawn — a new process is replacing this one
+      if (info.isRespawning) return;
+
+      // Stop auto-checkpointing
+      this.checkpointManager.stopAutoCheckpoint(taskId);
+      this.rateLimitDetector.cancelResume(taskId);
+
+      if (stateMachine.state === 'running') {
+        if (code === 0) {
+          stateMachine.transition('complete');
+        } else {
+          stateMachine.transition('fail');
+        }
+      }
+      this.emit(`state:${taskId}`, stateMachine.state);
+      this.emit(`exit:${taskId}`, code);
+      this.agents.delete(taskId);
+    });
+
+    agentProcess.on('error', (err: Error) => {
+      this.emit(`log:${taskId}`, `[error] ${err.message}`);
+    });
   }
 
   private getAgent(taskId: string): AgentInfo {

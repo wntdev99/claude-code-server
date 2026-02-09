@@ -61,10 +61,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       data: { status: 'in_progress' },
     });
 
-    // Request rework via AgentManager
+    // Request rework via AgentManager (respawns agent with feedback in prompt)
     const agentManager = AgentManager.getInstance();
     try {
-      agentManager.requestRework(review.taskId, feedback);
+      await agentManager.requestRework(review.taskId, feedback);
     } catch {
       // Agent might not be running - that's OK
     }

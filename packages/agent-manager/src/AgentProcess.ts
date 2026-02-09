@@ -68,16 +68,6 @@ export class AgentProcess extends EventEmitter {
   }
 
   /**
-   * Send input to the agent's stdin.
-   */
-  sendInput(input: string): void {
-    if (!this.process?.stdin?.writable) {
-      throw new Error('Cannot write to agent stdin - process not running');
-    }
-    this.process.stdin.write(input + '\n');
-  }
-
-  /**
    * Pause the agent process (SIGTSTP).
    */
   pause(): void {

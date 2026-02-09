@@ -33,10 +33,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       data: { answer: sanitizedAnswer, answeredAt: new Date() },
     });
 
-    // Send answer to the agent (if running)
+    // Send answer to the agent (respawns agent with answer in prompt)
     try {
       const agentManager = AgentManager.getInstance();
-      agentManager.sendAnswer(question.taskId, sanitizedAnswer);
+      await agentManager.sendAnswer(question.taskId, sanitizedAnswer);
     } catch {
       // Agent might not be running - that's OK
       // The answer is still saved in the database
